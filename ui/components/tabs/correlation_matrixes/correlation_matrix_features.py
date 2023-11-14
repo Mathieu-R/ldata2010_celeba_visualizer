@@ -42,7 +42,8 @@ def compute_embeddings_correlation_matrix(embeddings: pd.DataFrame):
 	Output(ids.CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH, "figure"),
 
 	Input(ids.FEATURES_STORE, "data"),
-	Input(ids.EMBEDDINGS_STORE, "data")
+	Input(ids.EMBEDDINGS_STORE, "data"),
+	Input(ids.FEATURES_SELECTION__SELECT, "value")
 )
 def compute_features_vs_embeddings_correlation_matrix(features: pd.DataFrame, embeddings: pd.DataFrame,  selected_features: list[str] | None):
 	if selected_features is None:
