@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "ldata2010-project"
+version = "0.1.0"
+description = ""
+authors = ["Mathieu-R <mathieu0709@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+pandas = "^2.1.2"
+numpy = "^1.26.1"
+matplotlib = "^3.8.1"
+dash = "^2.14.1"
+dash-bootstrap-components = "^1.5.0"
+dash-mantine-components = "^0.12.1"
+dash-iconify = "^0.1.2"
+ipykernel = "^6.26.0"
+seaborn = "^0.13.0"
+dash-extensions = "^1.0.4"
+pyarrow = "^14.0.1"
+fastparquet = "^2023.10.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

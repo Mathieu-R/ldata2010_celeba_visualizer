@@ -1,0 +1,80 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+.app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* HEADER */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+}
+
+.features_selection__container {
+    display: flex;
+    flex-direction: column;
+    padding: 15px 10px;
+    border: 1px solid gray;
+}
+
+.features_selection__select {
+    display: flex;
+    align-self: center;
+    width: 300px;
+}
+
+.header__select_dataset {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 300;
+}
+
+/* LAYOUT */
+
+.layout__container {
+    display: flex;
+    flex: 1;
+}
+
+.tab__container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* DATA EXPLO TAB */
+
+.photo_gallery__container {
+    position: relative;
+    display: flex;
+}
+
+.photo_gallery__image {
+    margin: 5px;
+}
+
+.photo_gallery__slider {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+}
+
+.correlation_matrix__tab {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
