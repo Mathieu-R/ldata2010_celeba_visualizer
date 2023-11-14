@@ -1,6 +1,6 @@
 import dash_mantine_components as dmc
 
-from dash_extensions.enrich import DashProxy, Input, Output, callback, html
+from dash_extensions.enrich import DashProxy, Input, Output, callback, dbc, html
 from dash_iconify import DashIconify
 
 from .tabs.photo_gallery import gallery
@@ -50,6 +50,7 @@ def render(app: DashProxy) -> html.Div:
 				className="correlation_matrix__tab"
 			),
 			dmc.TabsPanel([
+					sorted_features_presence.render(app),
 					features_histogram.render(app)
 				],
 				value="correlation_matrix__tab",

@@ -13,3 +13,5 @@ PHOTO_GALLERY__SLIDER = "photo_gallery__slider"
 CORRELATION_FEATURES__GRAPH = "correlation_features__graph"
 CORRELATION_EMBEDDINGS__GRAPH = "correlation_embeddings__graph"
 CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH = "correlation_features_vs_embeddings__graph"
+
+HISTOGRAM_SORTED_FEATURES_PRESENCE = "histogram_sorted_features_presence"
