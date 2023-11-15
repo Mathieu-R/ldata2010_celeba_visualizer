@@ -25,18 +25,19 @@ def load_dataset(dataset: str):
 
 def render(app: DashProxy) -> html.Div:
 	return html.Div(
+		className="aside",
 		children=[
 			html.H2(children="CelebA dataset visualizer"),
-			features_selection.render(app),
+			html.Hr(),
 			dmc.Select(
-				#label="Dataset",
+				label="Pick the dataset you want",
 				placeholder="Dataset",
 				id=ids.DATASET_DROPDOWN,
 				value=DATASETS[0],
 				data=DATASETS,
 				icon=DashIconify(icon="material-symbols-light:dataset-outline"), 
 				className="header__select_dataset"
-			)
-		],
-		className="header"
+			),
+			features_selection.render(app)
+		]
 	)

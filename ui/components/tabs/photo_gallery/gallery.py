@@ -63,7 +63,7 @@ def show_gallery(images_dict: dict, features_dict: dict, selected_features: list
 
 def render(app: DashProxy) -> html.Div:
 	return html.Div([
-		dmc.Container(
+		html.Div(
 			style={
 				"display": "flex",
 				"flex-wrap": "wrap",
