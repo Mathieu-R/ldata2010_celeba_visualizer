@@ -53,9 +53,12 @@ def compute_features_vs_embeddings_correlation_matrix(features: pd.DataFrame, em
 	
 	return px.imshow(get_triangle_corr(corr))
 
-def render(app: DashProxy) -> list[dcc.Graph]:
-	return [
-		dcc.Graph(id=ids.CORRELATION_FEATURES__GRAPH),
-		dcc.Graph(id=ids.CORRELATION_EMBEDDINGS__GRAPH),
-		dcc.Graph(id=ids.CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH),
-	]
+def render(app: DashProxy) -> html.Div:
+	return html.Div(
+		className="correlation_matrix__container",
+		children=[
+			dcc.Graph(id=ids.CORRELATION_FEATURES__GRAPH),
+			dcc.Graph(id=ids.CORRELATION_EMBEDDINGS__GRAPH),
+			dcc.Graph(id=ids.CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH),
+		]
+	)

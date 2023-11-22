@@ -11,36 +11,49 @@ body {
 
 .app {
     display: flex;
-    flex-direction: column;
     min-height: 100vh;
 }
 
-/* HEADER */
+/* ASIDE */
 
-.header {
+.aside {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
     padding: 5px 10px;
+    max-width: 300px;
+}
+
+.aside__select_dataset {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.aside__select_dataset label {
+    margin-bottom: 5px;
 }
 
 .features_selection__container {
     display: flex;
     flex-direction: column;
-    padding: 15px 10px;
-    border: 1px solid gray;
+    justify-content: center;
+    align-items: center;
+    margin: 10px 0;
 }
 
 .features_selection__select {
     display: flex;
+    flex-direction: column;
     align-self: center;
-    width: 300px;
+    width: 100%;
+    margin-bottom: 10px;
 }
 
-.header__select_dataset {
+.features_selection__buttons {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 300;
+    justify-content: space-around;
+    width: 100%;
 }
 
 /* LAYOUT */
@@ -50,9 +63,8 @@ body {
     flex: 1;
 }
 
-.tab__container {
+.tab__content {
     display: flex;
-    flex-direction: column;
     flex: 1;
 }
 
@@ -73,7 +85,7 @@ body {
     width: 100%;
 }
 
-.correlation_matrix__tab {
+.correlation_matrix__container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
