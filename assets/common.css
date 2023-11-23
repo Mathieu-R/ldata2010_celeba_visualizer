@@ -73,6 +73,8 @@ body {
 .photo_gallery__container {
     position: relative;
     display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 .photo_gallery__image {
@@ -89,4 +91,13 @@ body {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
+    overflow: auto;
+}
+
+.features_plots__container {
+    overflow: auto;
+}
+
+.dr_clustering__container {
+    overflow: auto;
 }

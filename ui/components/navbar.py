@@ -26,11 +26,6 @@ def render(app: DashProxy) -> html.Div:
 				],
 				label="Gallery",
 				value="photo_gallery__tab",
-				style={
-					"display": "flex",
-					"flex": 1,
-					"padding": "10px"
-				},
 				className="photo_gallery__tab"
 			),
 			dcc.Tab(
