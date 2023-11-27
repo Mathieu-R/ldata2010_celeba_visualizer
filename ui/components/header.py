@@ -1,11 +1,11 @@
 import pandas as pd
-import dash_mantine_components as dmc
+import dash_bootstrap_components as dbc
 
 from dash_extensions.enrich import DashProxy, Serverside, Input, Output, callback, html
 from dash_iconify import DashIconify
 
 from ui import ids
-from ui.components import features_selection
+from ui.components.inputs import input_select_field
 from constants import DATASETS
 
 @callback(
@@ -24,20 +24,18 @@ def load_dataset(dataset: str):
 	return Serverside(features), Serverside(embeddings), Serverside(images)
 
 def render(app: DashProxy) -> html.Div:
-	return html.Div(
-		className="aside",
-		children=[
-			html.H2(children="CelebA dataset visualizer"),
-			html.Hr(),
-			dmc.Select(
-				label="Pick the dataset you want",
-				placeholder="Dataset",
-				id=ids.DATASET_DROPDOWN,
-				value=DATASETS[0],
-				data=DATASETS,
-				icon=DashIconify(icon="material-symbols-light:dataset-outline"), 
-				className="header__select_dataset"
-			),
-			features_selection.render(app)
-		]
-	)
+	return html.Div([
+		dbc.Row([
+			dbc.Col([html.H2(children="CelebA dataset visualizer")]),
+			dbc.Col([
+				dbc.Select(
+					id=ids.DATASET_DROPDOWN,
+					persistence=True,
+					persistence_type="local",
+					value=DATASETS[0],
+					options=DATASETS,
+					class_name="input_select"
+				)
+			])
+		])
+	], style={"padding": "10px 5px"})

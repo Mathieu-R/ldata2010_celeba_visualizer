@@ -1,11 +1,12 @@
-import dash_mantine_components as dmc
+import dash_bootstrap_components as dbc
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, dcc, html
 from dash_iconify import DashIconify
 
 from .tabs.photo_gallery import gallery
-from .tabs.correlation_matrixes import correlation_matrix_features
+from .tabs.correlation_matrixes import correlation_matrix
 from .tabs.features_plots import features_plots
+from .tabs.dr_clustering import dr
 from ui import ids
 
 def render(app: DashProxy) -> html.Div:
@@ -13,39 +14,41 @@ def render(app: DashProxy) -> html.Div:
 		className=".layout__container",
 		style={
 			"display": "flex",
+			"flex-direction": "column",
 			"flex": 1
 		},
 		children=[
-		dcc.Tabs(
-			parent_className="tab__content",
-			className="tab__container",
-			value="photo_gallery__tab",
+		dbc.Tabs(
+			class_name="tab__container",
+			active_tab="photo_gallery__tab",
 			children=[
-			dcc.Tab([
+			dbc.Tab([
 					gallery.render(app)
 				],
 				label="Gallery",
-				value="photo_gallery__tab",
-				className="photo_gallery__tab"
+				tab_id="photo_gallery__tab",
+				class_name="photo_gallery__tab"
 			),
-			dcc.Tab(
-				children=correlation_matrix_features.render(app),
+			dbc.Tab(
+				children=correlation_matrix.render(app),
 				label="Correlation Matrix",
-				value="correlation_matrix__tab",
-				className="correlation_matrix__tab"
+				tab_id="correlation_matrix__tab",
+				class_name="correlation_matrix__tab"
 			),
-			dcc.Tab([
+			dbc.Tab([
 					features_plots.render(app)
 				],
 				label="Features Plots",
-				value="features_plot__tab",
-				className="features_plot__tab"
+				tab_id="features_plot__tab",
+				class_name="features_plot__tab"
 			),
-			dcc.Tab(
-				children=[],
+			dbc.Tab(
+				children=[
+					dr.render(app)
+				],
 				label="DR / Clustering",
-				value="dr_clustering__tab",
-				className="dr_clustering__tab"
+				tab_id="dr_clustering__tab",
+				class_name="dr_clustering__tab"
 			)]
 		)]
 	)
