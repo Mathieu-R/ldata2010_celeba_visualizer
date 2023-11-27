@@ -6,7 +6,7 @@ from dash_iconify import DashIconify
 from .tabs.photo_gallery import gallery
 from .tabs.correlation_matrixes import correlation_matrix
 from .tabs.features_plots import features_plots
-from .tabs.dr_clustering import dr
+from .tabs.dr_clustering import layout as dr_clustering_layout
 from ui import ids
 
 def render(app: DashProxy) -> html.Div:
@@ -29,8 +29,9 @@ def render(app: DashProxy) -> html.Div:
 				tab_id="photo_gallery__tab",
 				class_name="photo_gallery__tab"
 			),
-			dbc.Tab(
-				children=correlation_matrix.render(app),
+			dbc.Tab([
+					correlation_matrix.render(app)
+				],
 				label="Correlation Matrix",
 				tab_id="correlation_matrix__tab",
 				class_name="correlation_matrix__tab"
@@ -42,9 +43,8 @@ def render(app: DashProxy) -> html.Div:
 				tab_id="features_plot__tab",
 				class_name="features_plot__tab"
 			),
-			dbc.Tab(
-				children=[
-					dr.render(app)
+			dbc.Tab([
+					dr_clustering_layout.render(app)
 				],
 				label="DR / Clustering",
 				tab_id="dr_clustering__tab",

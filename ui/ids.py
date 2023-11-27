@@ -27,11 +27,19 @@ FEATURES_PLOTS__HIST = "features_plots__hist"
 DR__GRAPH = "dr__graph"
 DR__CONFIG = "dr__config"
 DR__SELECT_ALGO = "dr__select_algo"
+DR_TSNE__CONFIG = "dr_tsne__config"
 DR_TSNE__PERPLEXITY = "dr_tsne__perplexity"
 DR_TSNE__LEARNING_RATE = "dr_tsne__learning_rate"
 DR_TSNE__ITERATIONS = "dr_tsne__iterations"
 DR_TSNE__COMPONENTS = "dr_tsne__components"
 
-DR_PCA__COMPONENTS = "dr_pca__components"
+DR__COMPONENTS = "dr__components"
 
 DR__START_ALGO = "dr__start_algo"
+
+CLUSTERING__GRAPH = "clustering__graph"
+CLUSTERING__CONFIG = "clustering__config"
+CLUSTERING__SELECT_ALGO = "clustering__select_algo"
+CLUSTERING_KMEANS__CONFIG = "clustering_kmeans__config"
+
+CLUSTERING__START_ALGO = "clustering__start_algo"
