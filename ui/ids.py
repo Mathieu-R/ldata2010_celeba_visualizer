@@ -23,10 +23,10 @@ FEATURES_PLOTS__SORTED_FEATURES_PRESENCE_BAR = "histogram_sorted_features_presen
 FEATURES_PLOTS__SELECT_FEATURE = "features_plots__select_feature"
 FEATURES_PLOTS__HIST = "features_plots__hist"
 
-
 DR__GRAPH = "dr__graph"
 DR__CONFIG = "dr__config"
 DR__SELECT_ALGO = "dr__select_algo"
+DR__SELECT_DATA = "dr__select_data"
 DR_TSNE__CONFIG = "dr_tsne__config"
 DR_TSNE__PERPLEXITY = "dr_tsne__perplexity"
 DR_TSNE__LEARNING_RATE = "dr_tsne__learning_rate"
@@ -40,6 +40,8 @@ DR__START_ALGO = "dr__start_algo"
 CLUSTERING__GRAPH = "clustering__graph"
 CLUSTERING__CONFIG = "clustering__config"
 CLUSTERING__SELECT_ALGO = "clustering__select_algo"
+CLUSTERING__SELECT_DATA = "clustering__select_data"
 CLUSTERING_KMEANS__CONFIG = "clustering_kmeans__config"
+CLUSTERING_AGGLOMERATIVE__CONFIG = "clustering_agglomerative__config"
 
 CLUSTERING__START_ALGO = "clustering__start_algo"

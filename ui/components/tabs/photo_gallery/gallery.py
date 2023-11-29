@@ -3,12 +3,20 @@ import dash_bootstrap_components as dbc
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, dcc, html
 from dash.exceptions import PreventUpdate
-from PIL import Image
 
 from ui import ids
 from ui.components import inputs
 
 PICTURES_BY_PAGE = 50
+
+def get_subset_images(images: pd.DataFrame, features: pd.DataFrame, selected_features: list[str] | None) -> pd.DataFrame:
+	if selected_features is None:
+		subset_images = images
+	else:
+		features_mask = features[selected_features].isin([1]).all(axis=1)
+		subset_images = images[features_mask]
+
+	return subset_images
 
 @callback(
 	Output(ids.PHOTO_GALLERY__FILTER, "options"),
@@ -26,12 +34,7 @@ def set_features_in_select(features: pd.DataFrame | None) -> list[str]:
 	Input(ids.PHOTO_GALLERY__FILTER, "value")
 )
 def compute_pagination_properties(images: pd.DataFrame, features: pd.DataFrame, selected_features: list[str] | None) -> int:	
-	if selected_features is None:
-		raise PreventUpdate
-	
-	features_mask = features[selected_features].isin([1]).all(axis=1)
-
-	subset_images = images[features_mask]
+	subset_images = get_subset_images(images, features, selected_features)
 	
 	n_images = subset_images.shape[0]
 	max = int(n_images / PICTURES_BY_PAGE)
@@ -47,20 +50,14 @@ def compute_pagination_properties(images: pd.DataFrame, features: pd.DataFrame, 
 	Input(ids.PHOTO_GALLERY__PAGINATION, "active_page")
 )
 def show_gallery(images: pd.DataFrame, features: pd.DataFrame, selected_features: list[str] | None, page: int) -> list[html.Img]:	
-	if selected_features is None:
-		raise PreventUpdate
-
-	print(page)
-	
-	features_mask = features[selected_features].isin([1]).all(axis=1)
-	subset_images = images[features_mask]
+	subset_images = get_subset_images(images, features, selected_features)
 	
 	offset_start = (page - 1) * PICTURES_BY_PAGE
 	offset_stop = offset_start + PICTURES_BY_PAGE
 
 	return [
 		html.Img(
-			src=Image.open(f"assets/img_celeba/{image_name}"),
+			src=f"assets/img_celeba/{image_name}",
 			alt=image_name,
 			width=100, height=100,
 			className="photo_gallery__image"

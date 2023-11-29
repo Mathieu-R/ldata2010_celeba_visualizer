@@ -1,10 +1,13 @@
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
+import hashlib
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html 
 from sklearn.decomposition import PCA 
 from sklearn.manifold import TSNE
+
+from typing import Any
 
 from ui import ids
 from ui.components.inputs import input_number_field, input_select_field
@@ -16,92 +19,148 @@ class DR_ALGO(Enum):
 	PCA = "pca"
 	TSNE = "tsne"
 
-@callback(
-	Output(ids.DR__CONFIG, "children"),
+class DATA(Enum):
+	FEATURES = "features"
+	EMBEDDINGS = "embeddings"
 
-	Input(ids.DR__SELECT_ALGO, "value")
-)
-def set_config(algo: str):
-	if algo == DR_ALGO.TSNE.value:
-		return [
-			dbc.Col(input_number_field("Perplexity", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__PERPLEXITY}, min=5.0, max=50.0, value=30.0), width=3),
-			dbc.Col(input_number_field("Learning rate", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__LEARNING_RATE}, min=10.0, max=1000.0, value=200.0), width=3),
-			dbc.Col(input_number_field("Number of iterations", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__ITERATIONS}, min=250, max=50000, value=1000), width=4)
-		]
-	
-@callback(
-	Output(ids.DR__GRAPH, "figure"),
+class DR:
+	def __init__(self, app: DashProxy) -> None:
+		self._app = app
+		self._memo = {}
 
-	Input(ids.DR__START_ALGO, "n_clicks"),
-	Input(ids.DR__SELECT_ALGO, "value"),
+		if hasattr(self, "callbacks"):
+			self.callbacks(self._app)
 
-	Input({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
-	Input(ids.DR__COMPONENTS, "value"),
+	def callbacks(self, app: DashProxy):
+		@callback(
+			Output(ids.DR__CONFIG, "children"),
 
-	Input(ids.FEATURES_STORE, "data"),
-	suppress_callback_exceptions=True
-)
-def start_algo(
-	n_clicks: int | None, 
-	algo: str, 
-	tsne_config: list[int],
-	n_components: int,
-	features: pd.DataFrame
-):
-	if n_clicks is None:
-		return no_update
-	
-	n_components = int(n_components)
-	
-	if algo == DR_ALGO.TSNE.value and len(tsne_config) > 0:
-		tsne = TSNE(n_components=n_components, perplexity=float(tsne_config[0]), learning_rate=float(tsne_config[1]), n_iter=tsne_config[2])
-		res = tsne.fit_transform(features)
-	else:
-		pca = PCA(n_components=n_components)
-		res = pca.fit_transform(features)
-	
-	if (n_components == 2):
-		return px.scatter(res, x=res[:,0], y=res[:,1])
-	else:
-		return px.scatter_3d(res, x=res[:,0], y=res[:,1], z=res[:,2])
+			Input(ids.DR__SELECT_ALGO, "value")
+		)
+		def set_config(algo: str):
+			if algo == DR_ALGO.TSNE.value:
+				return [
+					dbc.Col(input_number_field("Perplexity", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__PERPLEXITY}, min=5.0, max=50.0, value=30.0), width=3),
+					dbc.Col(input_number_field("Learning rate", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__LEARNING_RATE}, min=10.0, max=1000.0, value=200.0), width=3),
+					dbc.Col(input_number_field("Number of iterations", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__ITERATIONS}, min=250, max=50000, value=1000), width=4)
+			]
+			
+		@callback(
+			Output(ids.DR__GRAPH, "figure"),
 
+			Input(ids.DR__START_ALGO, "n_clicks"),
+			Input(ids.DR__SELECT_DATA, "value"),
+			Input(ids.DR__SELECT_ALGO, "value"),
 
-def dimension_reduction(app: DashProxy) -> dbc.Card:
-	return dbc.Card([
-		dbc.CardHeader("Dimension Reduction"),
-		dbc.CardBody([
-			custom_graph(id=ids.DR__GRAPH, no_margin=True)
-		]),
-		dbc.CardFooter([
-			dbc.Row([
+			Input({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
+			Input(ids.DR__COMPONENTS, "value"),
+
+			Input(ids.FEATURES_STORE, "data"),
+			Input(ids.EMBEDDINGS_STORE, "data"),
+			suppress_callback_exceptions=True
+		)
+		def start_algo(
+			n_clicks: int | None, 
+			data_category: str,
+			algo: str, 
+			tsne_config: list[int],
+			n_components: int,
+			features: pd.DataFrame,
+			embeddings: pd.DataFrame
+		):
+			if n_clicks is None:
+				return no_update
+			
+			n_components = int(n_components)
+
+			if data_category == DATA.FEATURES.value:
+				dataset = features
+			else:
+				dataset = embeddings
+			
+			if algo == DR_ALGO.TSNE.value and len(tsne_config) > 0:
+				config = dict(n_components=n_components, perplexity=tsne_config[0], learning_rate=tsne_config[1], n_iter=tsne_config[2])
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, dataset=dataset)
+				return fig
+
+			else:
+				config = dict(n_components=n_components)
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, dataset=dataset)
+				return fig
+		
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset: pd.DataFrame):
+		hash = self.hash_config(
+			algo=algo,
+			config=config
+		)
+
+		# if value has already been computed
+		if hash in self._memo:
+			res = self._memo[hash]
+		# compute the value and save it for future use
+		else:
+			instance = algo_fun(**config)
+			res = instance.fit_transform(dataset)
+			self._memo[hash] = res
+
+		if (config["n_components"] == 2):
+			return px.scatter(res, x=res[:,0], y=res[:,1])
+		else:
+			return px.scatter_3d(res, x=res[:,0], y=res[:,1], z=res[:,2])
+		
+	def hash_config(self, algo: str, config: dict[str, Any]) -> str:
+		input = algo + str(sorted(config.items()))
+		hash = hashlib.sha256(input.encode())
+		hash_hex = hash.hexdigest()
+		return hash_hex
+
+	def render(self) -> dbc.Card:
+		return dbc.Card([
+			dbc.CardHeader([
+				"Dimension Reduction",
 				input_select_field(
-					title="Algorithm", 
-					id=ids.DR__SELECT_ALGO,
+					title=None,
+					id=ids.DR__SELECT_DATA,
 					options=[
-						{"label": "PCA", "value": DR_ALGO.PCA.value},
-						{"label": "TSNE", "value": DR_ALGO.TSNE.value}
+						{"label": DATA.FEATURES.name, "value": DATA.FEATURES.value},
+						{"label": DATA.EMBEDDINGS.name, "value": DATA.EMBEDDINGS.value}
 					],
-					value=DR_ALGO.PCA.value
+					value=DATA.FEATURES.value
 				)
 			]),
-			html.Br(),
-			dbc.Row([
-				dbc.Row(id=ids.DR__CONFIG),
-				dbc.Row([
-					dbc.Col(
-						input_select_field(
-							title="Number of components", 
-							id=ids.DR__COMPONENTS, 
-							options=[
-								{"label": "2", "value": 2},
-								{"label": "3", "value": 3}
-							],
-							value=2
-						)
-					)
-				])
+			dbc.CardBody([
+				custom_graph(id=ids.DR__GRAPH, no_margin=True)
 			]),
-			html.Br(),
-			dbc.Row([dbc.Button("Start", id=ids.DR__START_ALGO)])
+			dbc.CardFooter([
+				dbc.Row([
+					input_select_field(
+						title="Algorithm", 
+						id=ids.DR__SELECT_ALGO,
+						options=[
+							{"label": "PCA", "value": DR_ALGO.PCA.value},
+							{"label": "TSNE", "value": DR_ALGO.TSNE.value}
+						],
+						value=DR_ALGO.PCA.value
+					)
+				]),
+				html.Br(),
+				dbc.Row([
+					dbc.Row(id=ids.DR__CONFIG),
+					dbc.Row([
+						dbc.Col(
+							input_select_field(
+								title="Number of components", 
+								id=ids.DR__COMPONENTS, 
+								options=[
+									{"label": "2", "value": 2},
+									{"label": "3", "value": 3}
+								],
+								value=2
+							)
+						)
+					])
+				]),
+				html.Br(),
+				dbc.Row([dbc.Button("Start", id=ids.DR__START_ALGO)])
+			])
 		])
-	])
