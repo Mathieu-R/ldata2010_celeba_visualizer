@@ -1,11 +1,15 @@
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
+import numpy as np
 import hashlib
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html 
 from sklearn.decomposition import PCA 
-from sklearn.manifold import TSNE
+from sklearn.model_selection import train_test_split
+from sklearn.utils import resample
+from openTSNE import TSNE
+from umap import UMAP 
 
 from typing import Any
 
@@ -57,9 +61,12 @@ class DR:
 
 			Input(ids.FEATURES_STORE, "data"),
 			Input(ids.EMBEDDINGS_STORE, "data"),
+			progress=Output(ids.DR__GRAPH, "figure"),
+			background=True,
 			suppress_callback_exceptions=True
 		)
 		def start_algo(
+			set_progress: Any,
 			n_clicks: int | None, 
 			data_category: str,
 			algo: str, 
@@ -78,6 +85,10 @@ class DR:
 			else:
 				dataset = embeddings
 			
+			indices = np.random.permutation(list(range(dataset.shape[0])))
+			dataset_sample, dataset_rest = dataset.loc[indices[:1000],:], dataset.loc[indices[1000:],:]
+			
+
 			if algo == DR_ALGO.TSNE.value and len(tsne_config) > 0:
 				config = dict(n_components=n_components, perplexity=tsne_config[0], learning_rate=tsne_config[1], n_iter=tsne_config[2])
 				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, dataset=dataset)
@@ -85,6 +96,10 @@ class DR:
 
 			else:
 				config = dict(n_components=n_components)
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, dataset=dataset_sample)
+				print("setting fig")
+				set_progress(fig)
+
 				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, dataset=dataset)
 				return fig
 		
