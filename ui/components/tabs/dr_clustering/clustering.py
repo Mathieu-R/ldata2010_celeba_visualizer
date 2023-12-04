@@ -1,9 +1,13 @@
 import dash_bootstrap_components as dbc
 import plotly.express as px
+import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import hashlib
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html 
+from dash.exceptions import PreventUpdate
+from plotly import graph_objs as go
 from sklearn.decomposition import PCA 
 from sklearn.manifold import TSNE 
 from sklearn.cluster import KMeans, MiniBatchKMeans, AgglomerativeClustering
@@ -49,11 +53,11 @@ class Clustering:
 		def set_config(algo: str):
 			if algo == CLUSTERING_ALGO.MINIBATCHKMEANS.value or algo == CLUSTERING_ALGO.KMEDOIDS.value:
 				return [
-					dbc.Col(input_number_field("Number of clusters", id={"type": ids.CLUSTERING_KMEANS__CONFIG, "index": "clustering_kmeans__n_clusters"}, min=5.0, max=50.0, value=30.0), width=3)
+					dbc.Col(input_number_field("Number of clusters", id={"type": ids.CLUSTERING_KMEANS__CONFIG, "index": "clustering_kmeans__n_clusters"}, min=2, max=30, value=3), width=3)
 				]
 			else:
 				return [
-					dbc.Col(input_number_field("Number of clusters", id={"type": ids.CLUSTERING_KMEANS__CONFIG, "index": "clustering_kmeans__n_clusters"}, min=5.0, max=50.0, value=30.0), width=3),
+					dbc.Col(input_number_field("Number of clusters", id={"type": ids.CLUSTERING_KMEANS__CONFIG, "index": "clustering_kmeans__n_clusters"}, min=2, max=30, value=3), width=3),
 					dbc.Col(
 						input_select_field(
 							"Linkage", 
@@ -70,20 +74,28 @@ class Clustering:
 				]
 			
 		@callback(
-			Output(ids.CLUSTERING__GRAPH, "figure"),
+			output=Output(ids.CLUSTERING__GRAPH, "figure"),
+			inputs=[
+				Input(ids.CLUSTERING__START_ALGO, "n_clicks"),
+				Input(ids.DR__SELECT_DATA, "value"),
+				Input(ids.CLUSTERING__SELECT_ALGO, "value"),
 
-			Input(ids.CLUSTERING__START_ALGO, "n_clicks"),
-			Input(ids.DR__SELECT_DATA, "value"),
-			Input(ids.CLUSTERING__SELECT_ALGO, "value"),
+				Input({"type": ids.CLUSTERING_KMEANS__CONFIG, "index": ALL}, "value"),
+				Input({"type": ids.CLUSTERING_AGGLOMERATIVE__CONFIG, "index": ALL}, "value"),
 
-			Input({"type": ids.CLUSTERING_KMEANS__CONFIG, "index": ALL}, "value"),
-			Input({"type": ids.CLUSTERING_AGGLOMERATIVE__CONFIG, "index": ALL}, "value"),
-
-			Input(ids.FEATURES_STORE, "data"),
-			Input(ids.EMBEDDINGS_STORE, "data"),
+				Input(ids.FEATURES_STORE, "data"),
+				Input(ids.EMBEDDINGS_STORE, "data"),
+			],
+			running=[
+				(Output(ids.CLUSTERING__START_ALGO, "disabled"), True, False)
+			],
+			progess_default=go.Figure(),
+			progress=Output(ids.CLUSTERING__GRAPH, "figure"),
+			background=True,
 			suppress_callback_exceptions=True
 		)
 		def start_algo(
+			set_progress: Any,
 			n_clicks: int | None, 
 			data_category: str,
 			algo: str, 
@@ -93,31 +105,47 @@ class Clustering:
 			embeddings: pd.DataFrame
 		):
 			if n_clicks is None:
-				return no_update
+				raise PreventUpdate
 			
 			if data_category == DATA.FEATURES.value:
 				dataset = features
 			else:
 				dataset = embeddings
 
+			indices = np.random.permutation(list(range(dataset.shape[0])))
+			dataset_sample, dataset_rest = dataset.loc[indices[:3000],:], dataset.loc[indices[3000:],:]
+
 			n_clusters = kmeans_config[0]
-			print(kmeans_config, agglomerative_config)
 
 			if algo == CLUSTERING_ALGO.MINIBATCHKMEANS.value:
 				config = dict(n_init="auto", n_clusters=n_clusters)
-				self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, dataset=dataset)
-				#features["cluster"] = kmeans.fit_predict(features)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, type="subset", dataset=dataset_sample)
+				set_progress(fig)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, type="full", dataset=dataset)
+				return fig
+
 			elif algo == CLUSTERING_ALGO.KMEDOIDS.value:
 				config = dict(n_clusters=n_clusters)
-				self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, type="subset", dataset=dataset_sample)
+				set_progress(fig)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, type="full", dataset=dataset)
+				return fig
 			else:
 				linkage = agglomerative_config[0]
 				config = dict(n_clusters=n_clusters, linkage=linkage)
-				self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, config=config, dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, config=config, type="subset", dataset=dataset_sample)
+				set_progress(fig)
 
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset: pd.DataFrame):
+				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, config=config, type="full", dataset=dataset)
+				return fig
+
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], type: str, dataset: pd.DataFrame):
 		hash = self.hash_config(
 			algo=algo,
+			type=type,
 			config=config
 		)
 
@@ -131,7 +159,10 @@ class Clustering:
 			pca = PCA(n_components=2)
 			res = pca.fit_transform(dataset)
 
-			instance = algo_fun(**config)
+			if algo == CLUSTERING_ALGO.AGGLOMERATIVECLUSTERING.value:
+				instance = algo_fun(**config)
+			else:
+				instance = algo_fun(**config, random_state=42)
 
 			if algo == CLUSTERING_ALGO.KMEDOIDS.value:
 				labels = instance.fit(dataset).labels_
@@ -139,10 +170,10 @@ class Clustering:
 				labels = instance.fit_predict(dataset)
 			self._memo[hash] = {"res": res, "labels": labels}
 
-		return px.scatter(dataset, x=res[:,0], y=res[:,1], color=labels)
+		return px.scatter(dataset, x=res[:,0], y=res[:,1], color=labels, color_continuous_scale="Viridis")
 		
-	def hash_config(self, algo: str, config: dict[str, Any]) -> str:
-		input = algo + str(sorted(config.items()))
+	def hash_config(self, algo: str, type: str, config: dict[str, Any]) -> str:
+		input = algo + type + str(sorted(config.items()))
 		hash = hashlib.sha256(input.encode())
 		hash_hex = hash.hexdigest()
 		return hash_hex

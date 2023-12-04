@@ -5,6 +5,7 @@ import numpy as np
 import hashlib
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html
+from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
 from sklearn.decomposition import PCA 
 from sklearn.model_selection import train_test_split
@@ -51,17 +52,22 @@ class DR:
 			]
 			
 		@callback(
-			Output(ids.DR__GRAPH, "figure"),
+			output=Output(ids.DR__GRAPH, "figure"),
 
-			Input(ids.DR__START_ALGO, "n_clicks"),
-			Input(ids.DR__SELECT_DATA, "value"),
-			Input(ids.DR__SELECT_ALGO, "value"),
+			inputs=[
+				Input(ids.DR__START_ALGO, "n_clicks"),
+				Input(ids.DR__SELECT_DATA, "value"),
+				Input(ids.DR__SELECT_ALGO, "value"),
 
-			Input({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
-			Input(ids.DR__COMPONENTS, "value"),
+				Input({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
+				Input(ids.DR__COMPONENTS, "value"),
 
-			Input(ids.FEATURES_STORE, "data"),
-			Input(ids.EMBEDDINGS_STORE, "data"),
+				Input(ids.FEATURES_STORE, "data"),
+				Input(ids.EMBEDDINGS_STORE, "data"),
+			],
+			running=[
+				(Output(ids.DR__START_ALGO, "disabled"), True, False)
+			],
 			progess_default=go.Figure(),
 			progress=Output(ids.DR__GRAPH, "figure"),
 			background=True,
@@ -78,7 +84,7 @@ class DR:
 			embeddings: pd.DataFrame
 		):
 			if n_clicks is None:
-				return no_update
+				raise PreventUpdate
 			
 			n_components = int(n_components)
 
@@ -88,27 +94,26 @@ class DR:
 				dataset = embeddings
 			
 			indices = np.random.permutation(list(range(dataset.shape[0])))
-			dataset_sample, dataset_rest = dataset.loc[indices[:1000],:], dataset.loc[indices[1000:],:]
+			dataset_sample, dataset_rest = dataset.loc[indices[:3000],:], dataset.loc[indices[3000:],:]
 			
 
 			if algo == DR_ALGO.TSNE.value and len(tsne_config) > 0:
 				config = dict(n_components=n_components, perplexity=tsne_config[0], learning_rate=tsne_config[1], n_iter=tsne_config[2])
-				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, type="full", dataset=dataset)
 				return fig
 
 			else:
 				config = dict(n_components=n_components)
-				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, dataset=dataset_sample)
-				print("setting fig")
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, type="subset", dataset=dataset_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, dataset=dataset)
-				print("updating fig")
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, type="full", dataset=dataset)
 				return fig
 		
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset: pd.DataFrame):
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], type: str, dataset: pd.DataFrame):
 		hash = self.hash_config(
 			algo=algo,
+			type=type,
 			config=config
 		)
 
@@ -126,8 +131,8 @@ class DR:
 		else:
 			return px.scatter_3d(res, x=res[:,0], y=res[:,1], z=res[:,2])
 		
-	def hash_config(self, algo: str, config: dict[str, Any]) -> str:
-		input = algo + str(sorted(config.items()))
+	def hash_config(self, algo: str, type: str, config: dict[str, Any]) -> str:
+		input = algo + type + str(sorted(config.items()))
 		hash = hashlib.sha256(input.encode())
 		hash_hex = hash.hexdigest()
 		return hash_hex
