@@ -9,7 +9,7 @@ from constants import NUMBER_OF_FEATURES
 
 from ui import ids
 from ui.components.graph import custom_graph
-from ui.components.inputs import input_dropdown_field
+from ui.components.inputs import input_dropdown_field, input_select_field
 from ui.components.buttons import popout_button
 
 def get_triangle_corr(square_corr: pd.DataFrame) -> pd.DataFrame:
@@ -49,12 +49,29 @@ def compute_features_correlation_matrix(features: pd.DataFrame | None, selected_
 	return fig
 
 @callback(
-	Output(ids.CORRELATION_EMBEDDINGS__GRAPH, "figure"),
+	Output(ids.CORRELATION_EMBEDDINGS__SELECT_PARTS, "options"),
 
 	Input(ids.EMBEDDINGS_STORE, "data")
 )
-def compute_embeddings_correlation_matrix(embeddings: pd.DataFrame):
-	corr = embeddings.corr().abs()
+def set_embeddings_parts_in_select(embeddings: pd.DataFrame | None) -> list[str]:
+	n_columns = embeddings.columns.shape[0]
+	return [f"{i}-{min(i+10, n_columns)}" for i in np.arange(0, n_columns, 10)]
+
+@callback(
+	Output(ids.CORRELATION_EMBEDDINGS__GRAPH, "figure"),
+
+	Input(ids.EMBEDDINGS_STORE, "data"),
+	Input(ids.CORRELATION_EMBEDDINGS__SELECT_PARTS, "value")
+)
+def compute_embeddings_correlation_matrix(embeddings: pd.DataFrame, parts_str: str):
+	if parts_str == "":
+		raise PreventUpdate
+	
+	parts = parts_str.split("-")
+	start = int(parts[0])
+	stop = int(parts[1])
+
+	corr = embeddings.iloc[:,start:stop].corr().abs()
 	return px.imshow(get_triangle_corr(corr))
 
 # @callback(
@@ -80,17 +97,17 @@ def correlation_matrix_features_card(app: DashProxy) -> dbc.Card:
 		dbc.CardBody([
 			custom_graph(
 				id=ids.CORRELATION_FEATURES__GRAPH,
-			),
-			dbc.Row([
-				dbc.Col([
-					popout_button(id=ids.CORRELATION_FEATURES__POPOUT)
-				], md=2, align="start")
-			], justify="end")
+			)
+			# dbc.Row([
+			# 	dbc.Col([
+			# 		popout_button(id=ids.CORRELATION_FEATURES__POPOUT)
+			# 	], md=2, align="start")
+			# ], justify="end")
 		]),
 		dbc.CardFooter([
 			input_dropdown_field(
 				title="Filter features", 
-				placeholder="Filter the features",
+				placeholder="You need to select at least 2 features",
 				id=ids.CORRELATION_FEATURES__FILTER
 			)
 		])
@@ -99,14 +116,20 @@ def correlation_matrix_features_card(app: DashProxy) -> dbc.Card:
 def correlation_matrix_embeddings_card(app: DashProxy) -> dbc.Card:
 	return dbc.Card([
 		dbc.CardHeader([
-			html.H5("Embeddings correlation matrix")
+			html.H5("Embeddings correlation matrix"),
+			input_select_field(
+				title="Embeddings",
+				id=ids.CORRELATION_EMBEDDINGS__SELECT_PARTS,
+				options=[],
+				value=""
+			)
 		]),
 		dbc.CardBody(
 			custom_graph(id=ids.CORRELATION_EMBEDDINGS__GRAPH),
-		),
-		dbc.CardFooter([
+		)
+		# dbc.CardFooter([
 			
-		])
+		# ])
 	])
 
 def render(app: DashProxy) -> html.Div:

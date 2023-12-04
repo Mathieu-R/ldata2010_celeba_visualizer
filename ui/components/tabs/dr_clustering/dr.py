@@ -4,7 +4,8 @@ import pandas as pd
 import numpy as np
 import hashlib
 
-from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html 
+from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html
+from plotly import graph_objs as go
 from sklearn.decomposition import PCA 
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
@@ -61,6 +62,7 @@ class DR:
 
 			Input(ids.FEATURES_STORE, "data"),
 			Input(ids.EMBEDDINGS_STORE, "data"),
+			progess_default=go.Figure(),
 			progress=Output(ids.DR__GRAPH, "figure"),
 			background=True,
 			suppress_callback_exceptions=True
@@ -101,6 +103,7 @@ class DR:
 				set_progress(fig)
 
 				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, dataset=dataset)
+				print("updating fig")
 				return fig
 		
 	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset: pd.DataFrame):

@@ -17,6 +17,7 @@ CORRELATION_FEATURES__GRAPH = "correlation_features__graph"
 CORRELATION_FEATURES__POPOUT = "correlation_features__popout"
 CORRELATION_FEATURES__FILTER = "correlation_features__filter"
 CORRELATION_EMBEDDINGS__GRAPH = "correlation_embeddings__graph"
+CORRELATION_EMBEDDINGS__SELECT_PARTS = "correlation_embeddings__select_parts"
 CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH = "correlation_features_vs_embeddings__graph"
 
 FEATURES_PLOTS__SORTED_FEATURES_PRESENCE_BAR = "histogram_sorted_features_presence_bar"
