@@ -121,31 +121,32 @@ class Clustering:
 			if algo == CLUSTERING_ALGO.MINIBATCHKMEANS.value:
 				config = dict(n_init="auto", n_clusters=n_clusters)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, type="subset", dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, type="full", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, data_category=data_category, type="full", dataset=dataset)
 				return fig
 
 			elif algo == CLUSTERING_ALGO.KMEDOIDS.value:
 				config = dict(n_clusters=n_clusters)
-				fig = self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, type="subset", dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, type="full", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=KMedoids, config=config, data_category=data_category, type="full", dataset=dataset)
 				return fig
 			else:
 				linkage = agglomerative_config[0]
 				config = dict(n_clusters=n_clusters, linkage=linkage)
-				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, config=config, type="subset", dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, data_category=data_category, config=config, type="subset", dataset=dataset_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, config=config, type="full", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, data_category=data_category, config=config, type="full", dataset=dataset)
 				return fig
 
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], type: str, dataset: pd.DataFrame):
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], data_category: str, type: str, dataset: pd.DataFrame):
 		hash = self.hash_config(
 			algo=algo,
+			data_category=data_category,
 			type=type,
 			config=config
 		)
@@ -157,10 +158,12 @@ class Clustering:
 		# compute the value and save it for future use
 		else:
 			# reduce dimension
-			scaler = StandardScaler()
-			scaled = scaler.fit_transform(dataset)
-			pca = PCA(n_components=2)
-			res = pca.fit_transform(scaled)
+			#scaler = StandardScaler()
+			#scaled = scaler.fit_transform(dataset)
+			tsne = TSNE(n_components=2, perplexity=50, random_state=42)
+			res = tsne.fit_transform(dataset)
+			#pca = PCA(n_components=2)
+			#res = pca.fit_transform(scaled)
 
 			if algo == CLUSTERING_ALGO.AGGLOMERATIVECLUSTERING.value:
 				instance = algo_fun(**config)
@@ -180,13 +183,12 @@ class Clustering:
 		# to have cluster as discret values in legend
 		data["cluster"] = data["cluster"].astype(str)
 
-		custom_colors = px.colors.sequential.Viridis[:config["n_clusters"]]
-		print(custom_colors)
+		custom_colors = px.colors.qualitative.Plotly#[:config["n_clusters"]]
 
 		return px.scatter(data, x="pc1", y="pc2", color="cluster", labels={"cluster": "Cluster"}, opacity=0.5, color_discrete_sequence=custom_colors)
 		
-	def hash_config(self, algo: str, type: str, config: dict[str, Any]) -> str:
-		input = algo + type + str(sorted(config.items()))
+	def hash_config(self, algo: str, data_category: str, type: str, config: dict[str, Any]) -> str:
+		input = algo + data_category + type + str(sorted(config.items()))
 		hash = hashlib.sha256(input.encode())
 		hash_hex = hash.hexdigest()
 		return hash_hex

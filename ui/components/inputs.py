@@ -18,7 +18,7 @@ def input_number_field(title: str | None, id: str | dict[str, str], min: int | f
 			])
 		])
 
-def input_select_field(title: str | None, id: str | dict[str, str], options: list[dict[str, Any]], value: Any) -> html.Div:
+def input_select_field(title: str | None, id: str | dict[str, str], options: list[dict[str, Any]] | list[str], value: Any) -> html.Div:
 	if title is not None:
 		return html.Div([
 			html.P(title),

@@ -2,6 +2,7 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
 import numpy as np
+import openTSNE
 import hashlib
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html
@@ -10,7 +11,6 @@ from plotly import graph_objs as go
 from sklearn.decomposition import PCA 
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
-from openTSNE import TSNE
 from umap import UMAP 
 
 from typing import Any
@@ -24,10 +24,19 @@ from enum import Enum
 class DR_ALGO(Enum):
 	PCA = "pca"
 	TSNE = "tsne"
+	UMAP = "umap"
 
 class DATA(Enum):
 	FEATURES = "features"
 	EMBEDDINGS = "embeddings"
+
+UMAP_METRICS = [
+	"euclidean", "manhattan", "chebyshev", "minkowski",  
+	"canberra", "braycurtis", "haversine",
+	"mahalanobis", "wminkowski", "seuclidean",
+	"cosine", "correlation"
+	"hamming", "jaccard", "dice", "russellrao", "kulsinski", "rogerstanimoto", "sokalmichener", "sokalsneath", "yule"
+]
 
 class DR:
 	def __init__(self, app: DashProxy) -> None:
@@ -47,9 +56,20 @@ class DR:
 			if algo == DR_ALGO.TSNE.value:
 				return [
 					dbc.Col(input_number_field("Perplexity", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__PERPLEXITY}, min=5.0, max=50.0, value=30.0), width=3),
-					dbc.Col(input_number_field("Learning rate", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__LEARNING_RATE}, min=10.0, max=1000.0, value=200.0), width=3),
+					dbc.Col(input_number_field("Exaggeration", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__EXAGGERATION}, min=1.0, max=100.0, value=3.0), width=3),
 					dbc.Col(input_number_field("Number of iterations", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__ITERATIONS}, min=250, max=50000, value=1000), width=4)
-			]
+				]
+			elif algo == DR_ALGO.UMAP.value:
+				return [
+					dbc.Col(input_number_field("Neighbors", id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__NEIGHBORS}, min=1, max=200, value=15), width=3),
+					dbc.Col(input_number_field("Min. dist", id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__MIN_DIST}, min=0.0, max=1.0, value=0.1), width=3),
+					dbc.Col(input_select_field(
+						"Metric", 
+						id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__METRIC}, 
+						options=UMAP_METRICS,
+						value=UMAP_METRICS[0]
+					), width=3),
+				]
 			
 		@callback(
 			output=Output(ids.DR__GRAPH, "figure"),
@@ -60,6 +80,7 @@ class DR:
 				Input(ids.DR__SELECT_ALGO, "value"),
 
 				Input({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
+				Input({"type": ids.DR_UMAP__CONFIG, "index": ALL}, "value"),
 				Input(ids.DR__COMPONENTS, "value"),
 
 				Input(ids.FEATURES_STORE, "data"),
@@ -79,6 +100,7 @@ class DR:
 			data_category: str,
 			algo: str, 
 			tsne_config: list[int],
+			umap_config: Any,
 			n_components: int,
 			features: pd.DataFrame,
 			embeddings: pd.DataFrame
@@ -94,25 +116,40 @@ class DR:
 				dataset = embeddings
 			
 			indices = np.random.permutation(list(range(dataset.shape[0])))
-			dataset_sample, dataset_rest = dataset.loc[indices[:3000],:], dataset.loc[indices[3000:],:]
-			
+			reverse = np.argsort(indices)
 
-			if algo == DR_ALGO.TSNE.value and len(tsne_config) > 0:
-				config = dict(n_components=n_components, perplexity=tsne_config[0], learning_rate=tsne_config[1], n_iter=tsne_config[2])
-				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, type="full", dataset=dataset)
+			dataset_sample, dataset_rest = dataset.loc[indices[:3000],:], dataset.loc[indices[3000:],:]
+
+			if algo == DR_ALGO.TSNE.value:
+				config = dict(n_components=n_components, perplexity=tsne_config[0], exaggeration=tsne_config[1], n_iter=tsne_config[2])
+
+				fig = self.compute_and_save(algo=algo, algo_fun=open, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
+				set_progress(fig)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=open, config=config, data_category=data_category, type="subset", dataset=dataset)
+				return fig
+
+			elif algo == DR_ALGO.UMAP.value:
+				config = dict(n_components=n_components, n_neighbors=int(umap_config[0]), min_dist=float(umap_config[1]), metric=umap_config[2])
+				print(config)
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
+				set_progress(fig)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="full", dataset=dataset)
 				return fig
 
 			else:
 				config = dict(n_components=n_components)
-				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, type="subset", dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, type="full", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="full", dataset=dataset)
 				return fig
 		
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], type: str, dataset: pd.DataFrame):
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], data_category: str, type: str, dataset: pd.DataFrame):
 		hash = self.hash_config(
 			algo=algo,
+			data_category=data_category,
 			type=type,
 			config=config
 		)
@@ -122,17 +159,27 @@ class DR:
 			res = self._memo[hash]
 		# compute the value and save it for future use
 		else:
-			instance = algo_fun(**config)
-			res = instance.fit_transform(dataset)
+			if algo == DR_ALGO.TSNE.value:
+				affinities = algo_fun.affinity.PerplexityBasedNN(dataset, **config, random_state=42)
+				sample_init = algo_fun.initialization.pca(dataset_sample, random_state=42)
+				res = algo_fun.TSNE(affinities=affinities, initialization=sample_init)
+			else:
+				instance = algo_fun(**config)
+				res = instance.fit_transform(dataset)
+			
 			self._memo[hash] = res
 
-		if (config["n_components"] == 2):
-			return px.scatter(res, x=res[:,0], y=res[:,1])
-		else:
-			return px.scatter_3d(res, x=res[:,0], y=res[:,1], z=res[:,2])
+		return self.get_fig(data=res, n_components=config["n_components"])
 		
-	def hash_config(self, algo: str, type: str, config: dict[str, Any]) -> str:
-		input = algo + type + str(sorted(config.items()))
+		
+	def get_fig(self, data: Any, n_components: int):
+		if n_components == 2:
+			return px.scatter(data, x=data[:,0], y=data[:,1])
+		else:
+			return px.scatter_3d(data, x=data[:,0], y=data[:,1], z=data[:,2])
+		
+	def hash_config(self, algo: str, data_category: str, type: str, config: dict[str, Any]) -> str:
+		input = algo + data_category + type + str(sorted(config.items()))
 		hash = hashlib.sha256(input.encode())
 		hash_hex = hash.hexdigest()
 		return hash_hex
@@ -161,7 +208,8 @@ class DR:
 						id=ids.DR__SELECT_ALGO,
 						options=[
 							{"label": "PCA", "value": DR_ALGO.PCA.value},
-							{"label": "TSNE", "value": DR_ALGO.TSNE.value}
+							{"label": "TSNE", "value": DR_ALGO.TSNE.value},
+							{"label": "UMAP", "value": DR_ALGO.UMAP.value}
 						],
 						value=DR_ALGO.PCA.value
 					)
