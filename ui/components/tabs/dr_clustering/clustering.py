@@ -10,6 +10,7 @@ from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
 from sklearn.decomposition import PCA 
 from sklearn.manifold import TSNE 
+from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans, MiniBatchKMeans, AgglomerativeClustering
 from sklearn_extra.cluster import KMedoids
 from sklearn_extra.cluster import CLARA
@@ -156,8 +157,10 @@ class Clustering:
 		# compute the value and save it for future use
 		else:
 			# reduce dimension
+			scaler = StandardScaler()
+			scaled = scaler.fit_transform(dataset)
 			pca = PCA(n_components=2)
-			res = pca.fit_transform(dataset)
+			res = pca.fit_transform(scaled)
 
 			if algo == CLUSTERING_ALGO.AGGLOMERATIVECLUSTERING.value:
 				instance = algo_fun(**config)
@@ -168,9 +171,19 @@ class Clustering:
 				labels = instance.fit(dataset).labels_
 			else:
 				labels = instance.fit_predict(dataset)
+
 			self._memo[hash] = {"res": res, "labels": labels}
 
-		return px.scatter(dataset, x=res[:,0], y=res[:,1], color=labels, color_continuous_scale="Viridis")
+		data = pd.DataFrame(res, columns=["pc1", "pc2"])
+		data["cluster"] = labels
+
+		# to have cluster as discret values in legend
+		data["cluster"] = data["cluster"].astype(str)
+
+		custom_colors = px.colors.sequential.Viridis[:config["n_clusters"]]
+		print(custom_colors)
+
+		return px.scatter(data, x="pc1", y="pc2", color="cluster", labels={"cluster": "Cluster"}, opacity=0.5, color_discrete_sequence=custom_colors)
 		
 	def hash_config(self, algo: str, type: str, config: dict[str, Any]) -> str:
 		input = algo + type + str(sorted(config.items()))
