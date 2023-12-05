@@ -59,3 +59,13 @@ def input_dropdown_field(title: str, placeholder: str, id: str | dict[str, str])
 			}
 		)
 	])
+
+def input_radio_field(title: str, id: str | dict[str, str], options: list[dict[str, Any]] | list[str], value: Any) -> html.Div:
+	return html.Div([
+		dbc.Label(title),
+		dbc.RadioItems(
+			id=id,
+			options=options,
+			value=value
+		)
+	])

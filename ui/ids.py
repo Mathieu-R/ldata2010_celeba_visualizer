@@ -43,10 +43,12 @@ DR__COMPONENTS = "dr__components"
 DR__START_ALGO = "dr__start_algo"
 
 CLUSTERING__GRAPH = "clustering__graph"
+CLUSTERING__PROJECTION = "clustering__projection"
 CLUSTERING__CONFIG = "clustering__config"
 CLUSTERING__SELECT_ALGO = "clustering__select_algo"
 CLUSTERING__SELECT_DATA = "clustering__select_data"
 CLUSTERING_KMEANS__CONFIG = "clustering_kmeans__config"
+CLUSTERING_DBSCAN__CONFIG = "clustering_dbscan__config"
 CLUSTERING_AGGLOMERATIVE__CONFIG = "clustering_agglomerative__config"
 
 CLUSTERING__START_ALGO = "clustering__start_algo"

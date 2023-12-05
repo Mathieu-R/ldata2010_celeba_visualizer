@@ -16,7 +16,7 @@ Make sure you have the _make_ GNU utility and _python_ >= 3.9 installed.
 
 ```bash
 make install
-make precompute
+make datasets
 ```
 
 ```bash
