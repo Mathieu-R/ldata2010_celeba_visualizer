@@ -35,7 +35,8 @@ make run
 
 #### Manual installation
 
-Alternatively, if the above command does not work, you can install and run the project manually
+Alternatively, if the above command does not work, you can install and run the project manually.  
+At the root of the project, run the following commands.
 
 ```bash
 poetry install
@@ -50,7 +51,7 @@ pip install "dash[celery]"
 python precompute_datasets.py
 ```
 
-> Then add the `img_celeba` folder in the assets `folder`.
+> Then create a `assets` folder and add the `img_celeba` folder in it.
 > Finally, you can run the project
 
 ```bash
