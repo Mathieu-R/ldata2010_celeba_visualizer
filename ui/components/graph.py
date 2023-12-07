@@ -8,7 +8,10 @@ def custom_graph(id: str, no_margin: bool = False):
 		)
 	else: 
 		layout = go.Layout(
-			margin=dict(l=5, r=5, b=5, t=5)
+			margin=dict(l=5, r=5, b=5, t=5),
+			template='plotly_dark',
+			plot_bgcolor='rgba(0, 0, 0, 0)',
+			paper_bgcolor='rgba(0, 0, 0, 0)',
 		)
 	return dcc.Graph(
 		id=id, 

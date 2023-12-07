@@ -155,7 +155,7 @@ def correlation_matrix_embeddings_card(app: DashProxy) -> dbc.Card:
 def correlation_matrix_features_vs_embeddings_card(app: DashProxy) -> dbc.Card:
 	return dbc.Card([
 		dbc.CardHeader([
-			html.H5("Features correlation matrix")
+			html.H5("Features vs Embeddings correlation matrix")
 		]),
 		dbc.CardBody([
 			custom_graph(

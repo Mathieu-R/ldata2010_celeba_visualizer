@@ -24,10 +24,6 @@ def feature_presence_counter_plot(features: pd.DataFrame):
 		title="Most present features",
 		x="Feature",
 		y="Count"
-	).update_layout(
-		template='plotly_dark',
-		plot_bgcolor= 'rgba(0, 0, 0, 0)',
-		paper_bgcolor= 'rgba(0, 0, 0, 0)',
 	)
 
 	return fig
@@ -64,10 +60,6 @@ def feature_plot(features: pd.DataFrame, selected_feature: str | None):
 	fig = px.histogram(
 		features[selected_feature].map({-1: "No", 1: "Yes"}),
 		title=f"Histogram of {selected_feature}"
-	).update_layout(
-		template='plotly_dark',
-		plot_bgcolor= 'rgba(0, 0, 0, 0)',
-		paper_bgcolor= 'rgba(0, 0, 0, 0)',
 	)
 
 	return fig
@@ -86,10 +78,7 @@ def histograms(app: DashProxy) -> dbc.Card:
 		]),
 		dbc.CardBody(
 			graph.custom_graph(id=ids.FEATURES_PLOTS__HIST)
-		),
-		dbc.CardFooter([
-			
-		])
+		)
 	])
 
 def render(app: DashProxy) -> html.Div:

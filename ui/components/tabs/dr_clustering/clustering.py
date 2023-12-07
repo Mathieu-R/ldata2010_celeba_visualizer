@@ -5,13 +5,10 @@ import numpy.typing as npt
 import pandas as pd
 import hashlib
 
-from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html 
+from dash_extensions.enrich import DashProxy, Input, Output, callback, ALL, dcc, html 
 from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
-from sklearn.decomposition import PCA 
-from sklearn.manifold import TSNE 
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import MiniBatchKMeans, DBSCAN, AgglomerativeClustering
+from sklearn.cluster import MiniBatchKMeans, AgglomerativeClustering
 from hdbscan import HDBSCAN
 from typing import Any
 
@@ -28,7 +25,7 @@ class PROJECTION(Enum):
 class CLUSTERING_ALGO(Enum):
 	MINIBATCHKMEANS = "mini_batch_k_means"
 	HDBSCAN = "hdb_scan"
-	AGGLOMERATIVECLUSTERING = "agglometrative_clustering"
+	AGGLOMERATIVECLUSTERING = "agglomerative_clustering"
 
 class AGGLOMERATIVE_LINKAGE(Enum):
 	WARD = "ward"
@@ -140,6 +137,8 @@ class Clustering:
 			features: pd.DataFrame,
 			embeddings: pd.DataFrame
 		):
+			print(n_clicks)
+
 			if n_clicks is None:
 				raise PreventUpdate
 			
@@ -250,7 +249,8 @@ class Clustering:
 							title="Projection",
 							id=ids.CLUSTERING__PROJECTION,
 							options=[
-								{"label": PROJECTION.TSNE.name, "value": PROJECTION.TSNE.value}, {"label": PROJECTION.UMAP.name, "value": PROJECTION.UMAP.value}
+								{"label": PROJECTION.TSNE.name, "value": PROJECTION.TSNE.value}, 
+								{"label": PROJECTION.UMAP.name, "value": PROJECTION.UMAP.value}
 							],
 							value=PROJECTION.UMAP.value
 						),

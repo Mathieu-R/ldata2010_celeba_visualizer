@@ -2,15 +2,14 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
 import numpy as np
-import openTSNE
 import hashlib
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html
 from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
+
 from sklearn.decomposition import PCA 
-from sklearn.model_selection import train_test_split
-from sklearn.utils import resample
+from sklearn.manifold import TSNE
 from umap import UMAP 
 
 from typing import Any
@@ -38,6 +37,27 @@ UMAP_METRICS = [
 	"hamming", "jaccard", "dice", "russellrao", "kulsinski", "rogerstanimoto", "sokalmichener", "sokalsneath", "yule"
 ]
 
+class DATA_PART(Enum):
+	SAMPLE = "sample"
+	REST = "rest"
+	FULL = "full"
+
+ALGOS_CONFIG = {
+	DR_ALGO.PCA.value: {
+		# run algo on full dataset
+		"samples": None
+	},
+	DR_ALGO.TSNE.value: {
+		# too slow to run on full dataset
+		# (~ 30min)
+		"samples": 1000
+	},
+	DR_ALGO.UMAP.value: {
+		# too slow to run on full dataset
+		"samples": 1000
+	}
+}
+
 class DR:
 	def __init__(self, app: DashProxy) -> None:
 		self._app = app
@@ -56,7 +76,7 @@ class DR:
 			if algo == DR_ALGO.TSNE.value:
 				return [
 					dbc.Col(input_number_field("Perplexity", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__PERPLEXITY}, min=5.0, max=50.0, value=30.0), width=3),
-					dbc.Col(input_number_field("Exaggeration", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__EXAGGERATION}, min=1.0, max=100.0, value=3.0), width=3),
+					dbc.Col(input_number_field("Exaggeration", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__EXAGGERATION}, min=1.0, max=100.0, value=12.0), width=3),
 					dbc.Col(input_number_field("Number of iterations", id={"type": ids.DR_TSNE__CONFIG, "index": ids.DR_TSNE__ITERATIONS}, min=250, max=50000, value=1000), width=4)
 				]
 			elif algo == DR_ALGO.UMAP.value:
@@ -121,12 +141,12 @@ class DR:
 			dataset_sample, dataset_rest = dataset.loc[indices[:3000],:], dataset.loc[indices[3000:],:]
 
 			if algo == DR_ALGO.TSNE.value:
-				config = dict(n_components=n_components, perplexity=tsne_config[0], exaggeration=tsne_config[1], n_iter=tsne_config[2])
+				config = dict(n_components=n_components, perplexity=tsne_config[0], early_exaggeration=tsne_config[1], n_iter=tsne_config[2])
 
-				fig = self.compute_and_save(algo=algo, algo_fun=open, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=open, config=config, data_category=data_category, type="subset", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=TNSE, config=config, data_category=data_category, type="subset", dataset=dataset)
 				return fig
 
 			elif algo == DR_ALGO.UMAP.value:
@@ -159,14 +179,9 @@ class DR:
 			res = self._memo[hash]
 		# compute the value and save it for future use
 		else:
-			if algo == DR_ALGO.TSNE.value:
-				affinities = algo_fun.affinity.PerplexityBasedNN(dataset, **config, random_state=42)
-				sample_init = algo_fun.initialization.pca(dataset_sample, random_state=42)
-				res = algo_fun.TSNE(affinities=affinities, initialization=sample_init)
-			else:
-				instance = algo_fun(**config)
-				res = instance.fit_transform(dataset)
-			
+			instance = algo_fun(**config)
+			res = instance.fit_transform(dataset)
+				
 			self._memo[hash] = res
 
 		return self.get_fig(data=res, n_components=config["n_components"])
