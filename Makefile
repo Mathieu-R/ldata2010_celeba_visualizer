@@ -13,6 +13,9 @@ install:
 	$(PIP) install "dash[diskcache]"
 	$(PIP) install "dash[celery]"
 
+venv:
+	$(POETRY) shell
+
 datasets:
 	@if [ -z $(UNZIP) ]; then echo "Unzip could not be found. Please install it"; exit 2; fi
 	curl $(DATASETS_URL) --output celeba.zip
@@ -23,13 +26,10 @@ datasets:
 	mv celeba_buffalo_s.csv data/celeba_buffalo_s.csv
 	mv img_celeba assets/img_celeba
 	rm -rf celeba.zip
-	$(POETRY) shell 
 	python precompute_dataset.py
 
 precompute:
-	$(POETRY) shell 
 	python precompute_ndarray.py
 
 run:
-	$(POETRY) shell 
 	python main.py

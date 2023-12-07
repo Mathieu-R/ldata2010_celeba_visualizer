@@ -19,14 +19,17 @@ def get_triangle_corr(square_corr: pd.DataFrame) -> pd.DataFrame:
 
 @callback(
 	Output(ids.CORRELATION_FEATURES__FILTER, "options"),
+	Output(ids.CORRELATION_FEATURES_VS_EMBEDDINGS__FILTER, "options"),
 
 	Input(ids.FEATURES_STORE, "data")
 )
-def set_features_in_select(features: pd.DataFrame | None) -> list[str]:	
+def set_features_in_select(features: pd.DataFrame | None):	
 	if features is None:
 		raise PreventUpdate
 	
-	return features.columns.to_list()
+	features_list = features.columns.to_list()
+
+	return (features_list, features_list)
 
 @callback(
 	Output(ids.CORRELATION_FEATURES__GRAPH, "figure"),
@@ -38,7 +41,7 @@ def compute_features_correlation_matrix(features: pd.DataFrame | None, selected_
 	if features is None:
 		raise PreventUpdate
 	
-	if selected_features is None or len(selected_features) == 0:
+	if selected_features is None:
 		corr = features.corr().abs()
 	elif len(selected_features) == 1:
 		raise PreventUpdate
@@ -48,14 +51,14 @@ def compute_features_correlation_matrix(features: pd.DataFrame | None, selected_
 	fig = px.imshow(get_triangle_corr(corr))
 	return fig
 
-@callback(
-	Output(ids.CORRELATION_EMBEDDINGS__SELECT_PARTS, "options"),
+# @callback(
+# 	Output(ids.CORRELATION_EMBEDDINGS__SELECT_PARTS, "options"),
 
-	Input(ids.EMBEDDINGS_STORE, "data")
-)
-def set_embeddings_parts_in_select(embeddings: pd.DataFrame | None) -> list[str]:
-	n_columns = embeddings.columns.shape[0]
-	return [f"{i}-{min(i+10, n_columns)}" for i in np.arange(0, n_columns, 10)]
+# 	Input(ids.EMBEDDINGS_STORE, "data")
+# )
+# def set_embeddings_parts_in_select(embeddings: pd.DataFrame | None) -> list[str]:
+# 	n_columns = embeddings.columns.shape[0]
+# 	return [f"{i}-{min(i+10, n_columns)}" for i in np.arange(0, n_columns, 10)]
 
 @callback(
 	Output(ids.CORRELATION_EMBEDDINGS__GRAPH, "figure"),
@@ -63,31 +66,42 @@ def set_embeddings_parts_in_select(embeddings: pd.DataFrame | None) -> list[str]
 	Input(ids.EMBEDDINGS_STORE, "data"),
 	Input(ids.CORRELATION_EMBEDDINGS__SELECT_PARTS, "value")
 )
-def compute_embeddings_correlation_matrix(embeddings: pd.DataFrame, parts_str: str):
-	if parts_str == "":
-		raise PreventUpdate
+def compute_embeddings_correlation_matrix(embeddings: pd.DataFrame, parts: list[int]):
+	#if parts_str == "":
+	#	raise PreventUpdate
 	
-	parts = parts_str.split("-")
+	#parts = parts_str.split("-")
 	start = int(parts[0])
 	stop = int(parts[1])
 
 	corr = embeddings.iloc[:,start:stop].corr().abs()
 	return px.imshow(get_triangle_corr(corr))
 
-# @callback(
-# 	Output(ids.CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH, "figure"),
+@callback(
+ 	Output(ids.CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH, "figure"),
 
-# 	Input(ids.FEATURES_STORE, "data"),
-# 	Input(ids.EMBEDDINGS_STORE, "data"),
-# 	Input(ids.FEATURES_SELECTION__SELECT, "value")
-# )
-# def compute_features_vs_embeddings_correlation_matrix(features: pd.DataFrame, embeddings: pd.DataFrame,  selected_features: list[str] | None):
-# 	if selected_features is None:
-# 		corr = features.corrwith(embeddings).abs()
-# 	else:
-# 		corr = features[selected_features].corrwith(embeddings).abs()
-	
-	return px.imshow(get_triangle_corr(corr))
+	Input(ids.FEATURES_STORE, "data"),
+ 	Input(ids.EMBEDDINGS_STORE, "data"),
+	 
+	Input(ids.CORRELATION_FEATURES_VS_EMBEDDINGS__FILTER, "value"),
+	Input(ids.CORRELATION_FEATURES_VS_EMBEDDINGS__SELECT_PARTS, "value")
+)
+def compute_features_vs_embeddings_correlation_matrix(features: pd.DataFrame, embeddings: pd.DataFrame, selected_features: list[str] | None, parts: list[int]):
+	start = parts[0]
+	stop = parts[1]
+
+	if selected_features is not None:
+		features = features[selected_features]
+
+	embeddings = embeddings.iloc[:,start:stop]
+
+	# fast way
+	features = features - features.mean()
+	embeddings = embeddings - embeddings.mean()
+
+	corr = features.T.dot(embeddings).div(len(features)).div(embeddings.std(ddof=0)).div(features.std(ddof=0), axis=0)
+
+	return px.imshow(corr)
 
 def correlation_matrix_features_card(app: DashProxy) -> dbc.Card:
 	return dbc.Card([
@@ -98,11 +112,6 @@ def correlation_matrix_features_card(app: DashProxy) -> dbc.Card:
 			custom_graph(
 				id=ids.CORRELATION_FEATURES__GRAPH,
 			)
-			# dbc.Row([
-			# 	dbc.Col([
-			# 		popout_button(id=ids.CORRELATION_FEATURES__POPOUT)
-			# 	], md=2, align="start")
-			# ], justify="end")
 		]),
 		dbc.CardFooter([
 			input_dropdown_field(
@@ -117,19 +126,65 @@ def correlation_matrix_embeddings_card(app: DashProxy) -> dbc.Card:
 	return dbc.Card([
 		dbc.CardHeader([
 			html.H5("Embeddings correlation matrix"),
-			input_select_field(
-				title="Embeddings",
-				id=ids.CORRELATION_EMBEDDINGS__SELECT_PARTS,
-				options=[],
-				value=""
-			)
+			# input_select_field(
+			# 	title="Embeddings",
+			# 	id=ids.CORRELATION_EMBEDDINGS__SELECT_PARTS,
+			# 	options=[],
+			# 	value=""
+			# )
 		]),
 		dbc.CardBody(
 			custom_graph(id=ids.CORRELATION_EMBEDDINGS__GRAPH),
-		)
-		# dbc.CardFooter([
-			
-		# ])
+		),
+		dbc.CardFooter([
+			dbc.Row([
+				dbc.Col(
+					dcc.RangeSlider(
+						min=0, 
+						max=512, 
+						value=[0, 10],
+						allowCross=False, 
+						tooltip={"placement": "bottom", "always_visible": False},
+						id=ids.CORRELATION_EMBEDDINGS__SELECT_PARTS
+					)
+				)
+			])
+		])
+	])
+
+def correlation_matrix_features_vs_embeddings_card(app: DashProxy) -> dbc.Card:
+	return dbc.Card([
+		dbc.CardHeader([
+			html.H5("Features correlation matrix")
+		]),
+		dbc.CardBody([
+			custom_graph(
+				id=ids.CORRELATION_FEATURES_VS_EMBEDDINGS__GRAPH,
+			)
+		]),
+		dbc.CardFooter([
+			dbc.Row([
+				dbc.Col(
+					input_dropdown_field(
+						title="Filter features", 
+						placeholder="You need to select at least 2 features",
+						id=ids.CORRELATION_FEATURES_VS_EMBEDDINGS__FILTER
+					)
+				)
+			]),
+			dbc.Row([
+				dbc.Col(
+					dcc.RangeSlider(
+						min=0, 
+						max=512, 
+						value=[0, 10],
+						allowCross=False, 
+						tooltip={"placement": "bottom", "always_visible": False},
+						id=ids.CORRELATION_FEATURES_VS_EMBEDDINGS__SELECT_PARTS
+					)
+				)
+			])
+		])
 	])
 
 def render(app: DashProxy) -> html.Div:
@@ -139,6 +194,9 @@ def render(app: DashProxy) -> html.Div:
 				dbc.Row([
 					dbc.Col(correlation_matrix_features_card(app), width=6),
 					dbc.Col(correlation_matrix_embeddings_card(app), width=6)
+				]),
+				dbc.Row([
+					dbc.Col(correlation_matrix_features_vs_embeddings_card(app))
 				])
 			])
 		], color="dark")

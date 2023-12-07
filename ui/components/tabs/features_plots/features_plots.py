@@ -62,7 +62,7 @@ def feature_plot(features: pd.DataFrame, selected_feature: str | None):
 		raise PreventUpdate
 	
 	fig = px.histogram(
-		features[selected_feature].replace({-1: "no", 1: "yes"}),
+		features[selected_feature].map({-1: "No", 1: "Yes"}),
 		title=f"Histogram of {selected_feature}"
 	).update_layout(
 		template='plotly_dark',

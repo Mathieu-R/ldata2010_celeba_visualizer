@@ -4,8 +4,16 @@
 
 > We use Poetry as package manager for this project
 
+For Linux, MacOS, Windows (WSL)
+
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
+```
+
+For Windows (PowerShell)
+
+```bash
+(Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
 ```
 
 Other ways to install it: https://python-poetry.org/docs/#installing-with-the-official-installer
@@ -16,10 +24,12 @@ Make sure you have the _make_ GNU utility and _python_ >= 3.9 installed.
 
 ```bash
 make install
+make venv
 make datasets
 ```
 
 ```bash
+make venv
 make run
 ```
 
@@ -28,7 +38,6 @@ make run
 Alternatively, if the above command does not work, you can install and run the project manually
 
 ```bash
-pip install poetry
 poetry install
 poetry shell
 pip install "dash[diskcache]"

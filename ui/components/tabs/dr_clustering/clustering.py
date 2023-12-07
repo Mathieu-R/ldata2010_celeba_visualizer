@@ -12,8 +12,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE 
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import MiniBatchKMeans, DBSCAN, AgglomerativeClustering
-from sklearn_extra.cluster import KMedoids
-from sklearn_extra.cluster import CLARA
+from hdbscan import HDBSCAN
 from typing import Any
 
 from ui import ids
@@ -23,13 +22,12 @@ from ui.components.graph import custom_graph
 from enum import Enum
 
 class PROJECTION(Enum):
-	TSNE = "tsne"
+	TSNE = "tsne_exaggeration_12"
 	UMAP = "umap"
 
 class CLUSTERING_ALGO(Enum):
 	MINIBATCHKMEANS = "mini_batch_k_means"
-	#KMEDOIDS = "k_medoids"
-	DBSCAN = "db_scan"
+	HDBSCAN = "hdb_scan"
 	AGGLOMERATIVECLUSTERING = "agglometrative_clustering"
 
 class AGGLOMERATIVE_LINKAGE(Enum):
@@ -46,6 +44,22 @@ class DATA_PART(Enum):
 	SAMPLE = "sample"
 	REST = "rest"
 	FULL = "full"
+
+ALGOS_CONFIG = {
+	CLUSTERING_ALGO.MINIBATCHKMEANS.value: {
+		# run algo on full dataset
+		"samples": None
+	},
+	CLUSTERING_ALGO.HDBSCAN.value: {
+		# too slow to run on full dataset
+		# (~ 10min)
+		"samples": 5000
+	},
+	CLUSTERING_ALGO.AGGLOMERATIVECLUSTERING.value: {
+		# too slow to run on full dataset
+		"samples": 10000
+	}
+}
 
 class Clustering:
 	def __init__(self, app: DashProxy) -> None:
@@ -66,9 +80,9 @@ class Clustering:
 				return [
 					dbc.Col(input_number_field("Number of clusters", id={"type": ids.CLUSTERING_KMEANS__CONFIG, "index": "clustering_kmeans__n_clusters"}, min=2, max=30, value=3), width=3)
 				]
-			elif algo == CLUSTERING_ALGO.DBSCAN.value:
+			elif algo == CLUSTERING_ALGO.HDBSCAN.value:
 				return [
-					dbc.Col(input_number_field("Eps", id={"type": ids.CLUSTERING_DBSCAN__CONFIG, "index": "clustering_dbscan__eps"}, min=0.1, max=100.0, value=0.5), width=3),
+					dbc.Col(input_number_field("Min cluster size", id={"type": ids.CLUSTERING_DBSCAN__CONFIG, "index": "clustering_dbscan__min_cluster_size"}, min=1, max=100, value=5), width=3),
 					dbc.Col(input_number_field("Min samples", id={"type": ids.CLUSTERING_DBSCAN__CONFIG, "index": "clustering_dbscan__min_samples"}, min=1, max=1000, value=5), width=3)
 				]
 			else:
@@ -134,44 +148,34 @@ class Clustering:
 			else:
 				dataset = embeddings
 
-			indices = np.random.permutation(list(range(dataset.shape[0])))
-			dataset_sample = dataset.loc[indices[:3000],:]
+			data_projected = np.load(f"precomputed/{dataset_file}__{data_category}_{projection}.npy")
 
-			dataset_projection = np.load(f"precomputed/{dataset_file}__{data_category}_{projection}.npy")
-			dataset_projection_sample = np.take(dataset_projection, indices[:3000], axis=0)
-
+			print(algo)
 
 			if algo == CLUSTERING_ALGO.MINIBATCHKMEANS.value:
 				n_clusters = kmeans_config[0]
 				config = dict(n_init="auto", n_clusters=n_clusters)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.SAMPLE.value, projection=projection, dataset=dataset_sample, dataset_projection=dataset_projection_sample)
-				set_progress(fig)
-
-				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, dataset_projection=dataset_projection)
+				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, data_projected=data_projected)
 				return fig
 
-			elif algo == CLUSTERING_ALGO.DBSCAN.value:
-				eps = float(dbscan_config[0])
+			elif algo == CLUSTERING_ALGO.HDBSCAN.value:
+				min_cluster_size = int(dbscan_config[0])
 				min_samples = int(dbscan_config[1])
 
-				config = dict(eps=eps, min_samples=min_samples)
-				fig = self.compute_and_save(algo=algo, algo_fun=DBSCAN, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.SAMPLE.value, projection=projection, dataset=dataset_sample, dataset_projection=dataset_projection_sample)
-				set_progress(fig)
+				config = dict(min_cluster_size=min_cluster_size, min_samples=min_samples)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=DBSCAN, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, dataset_projection=dataset_projection)
+				fig = self.compute_and_save(algo=algo, algo_fun=HDBSCAN, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, data_projected=data_projected)
 				return fig
 			else:
 				n_clusters = kmeans_config[0]
 				linkage = agglomerative_config[0]
 				config = dict(n_clusters=n_clusters, linkage=linkage)
-				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, dataset_file=dataset_file, data_category=data_category, config=config, type=DATA_PART.SAMPLE.value, projection=projection, dataset=dataset_sample, dataset_projection=dataset_projection_sample)
-				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, dataset_file=dataset_file, data_category=data_category, config=config, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, dataset_projection=dataset_projection)
+				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, dataset_file=dataset_file, data_category=data_category, config=config, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, data_projected=data_projected)
 				return fig
 
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset_file: str, data_category: str, type: str, projection: str, dataset: pd.DataFrame, dataset_projection: pd.DataFrame):
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset_file: str, data_category: str, type: str, projection: str, dataset: pd.DataFrame, data_projected: pd.DataFrame):
 		hash = self.hash_config(
 			algo=algo,
 			data_category=data_category,
@@ -180,33 +184,44 @@ class Clustering:
 			config=config
 		)
 
+		dataset, data_projected = self.get_sample_if_needed(algo, dataset, data_projected)
+
 		# if value has already been computed
 		if hash in self._memo:
 			labels = self._memo[hash]
 		# compute the value and save it for future use
 		else:
-			if algo == CLUSTERING_ALGO.MINIBATCHKMEANS.value:
-				instance = algo_fun(**config, random_state=42)
-			else:
-				instance = algo_fun(**config)
-
+			instance = self.get_algo_instance(algo, algo_fun, config)
 			labels = instance.fit_predict(dataset)
-
-			# if algo == CLUSTERING_ALGO.KMEDOIDS.value:
-			# 	labels = instance.fit(dataset).labels_
-			# else:
-			# 	labels = instance.fit_predict(dataset)
-
 			self._memo[hash] = labels
 
-		data = pd.DataFrame(dataset_projection, columns=["pc1", "pc2", "pc3"])
+		data = pd.DataFrame(data_projected, columns=["pc1", "pc2", "pc3"])
 		data["cluster"] = labels
 
 		# to have cluster as discrete values in legend
 		data["cluster"] = data["cluster"].astype(str)
 
 		return px.scatter(data, x="pc1", y="pc2", color="cluster", labels={"cluster": "Cluster"}, opacity=0.5, color_discrete_sequence=px.colors.qualitative.Plotly)
+	
+	def get_sample_if_needed(self, algo: str, dataset: pd.DataFrame, data_projected: pd.DataFrame) -> Any:
+		n_samples = ALGOS_CONFIG[algo]["samples"]
+
+		if n_samples is None:
+			return (dataset, data_projected)
 		
+		indices = np.random.permutation(list(range(dataset.shape[0])))
+		dataset_sample = dataset.loc[indices[:n_samples],:]
+		data_projected_sample = np.take(data_projected, indices[:n_samples], axis=0)
+		return (dataset_sample, data_projected_sample)
+	
+	def get_algo_instance(self, algo: str, algo_fun: Any, config: dict[str, Any]) -> Any:
+		if algo == CLUSTERING_ALGO.MINIBATCHKMEANS.value:
+			instance = algo_fun(**config, random_state=42)
+		else:
+			instance = algo_fun(**config)
+		
+		return instance
+
 	def hash_config(self, algo: str, data_category: str, type: str, projection: str, config: dict[str, Any]) -> str:
 		input = algo + data_category + type + projection + str(sorted(config.items()))
 		hash = hashlib.sha256(input.encode())
@@ -234,7 +249,9 @@ class Clustering:
 						input_radio_field(
 							title="Projection",
 							id=ids.CLUSTERING__PROJECTION,
-							options=[PROJECTION.TSNE.value, PROJECTION.UMAP.value],
+							options=[
+								{"label": PROJECTION.TSNE.name, "value": PROJECTION.TSNE.value}, {"label": PROJECTION.UMAP.name, "value": PROJECTION.UMAP.value}
+							],
 							value=PROJECTION.UMAP.value
 						),
 						width=3
@@ -252,7 +269,7 @@ class Clustering:
 						id=ids.CLUSTERING__SELECT_ALGO,
 						options=[
 							{"label": "Mini Batch KMeans", "value": CLUSTERING_ALGO.MINIBATCHKMEANS.value},
-							{"label": "DBScan", "value": CLUSTERING_ALGO.DBSCAN.value},
+							{"label": "HDBScan", "value": CLUSTERING_ALGO.HDBSCAN.value},
 							{"label": "Agglomerative Clustering", "value": CLUSTERING_ALGO.AGGLOMERATIVECLUSTERING.value},
 						],
 						value=CLUSTERING_ALGO.MINIBATCHKMEANS.value
