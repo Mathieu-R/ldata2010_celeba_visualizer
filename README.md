@@ -67,11 +67,9 @@ conda create -n venv
 ```
 
 ```bash
-venv\Scripts\activate.bat # windows
-venv\Scripts\Activate.ps1 # powershell
+conda activate
 ```
 
-```
-pip install -r requirements.txt
-python3 main.py
+```bash
+conda install
 ```
