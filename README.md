@@ -57,3 +57,21 @@ python precompute_datasets.py
 ```bash
 python main.py
 ```
+
+#### Conda
+
+Poetry does not work really well with conda. If you have conda installed, you can run the following
+
+```bash
+python3 -m venv env
+```
+
+```bash
+venv\Scripts\activate.bat # windows
+venv\Scripts\Activate.ps1 # powershell
+```
+
+```
+pip install -r requirements.txt
+python3 main.py
+```
