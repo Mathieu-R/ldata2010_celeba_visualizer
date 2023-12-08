@@ -73,3 +73,11 @@ python precompute_datasets.py
 ```bash
 python main.py
 ```
+
+#### Troubleshooting
+
+> Could not build wheels...
+
+```bash
+pip install --upgrade pip setuptools wheel
+```

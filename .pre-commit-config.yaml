@@ -1,10 +1,13 @@
-hooks:
-    - id: poetry-export
-      args:
-          [
-              "--without-hashes",
-              "-f",
-              "requirements.txt",
-              "-o",
-              "requirements.txt",
-          ]
+repos:
+    -   repo: https://github.com/Mathieu-R/ldata2010_celeba_visualizer
+        rev: v1.0.0
+        hooks:
+            - id: poetry-export
+                args:
+                    [
+                        "--without-hashes",
+                        "-f",
+                        "requirements.txt",
+                        "-o",
+                        "requirements.txt",
+                    ]
