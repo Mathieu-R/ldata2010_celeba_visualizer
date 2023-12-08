@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import hashlib
 
-from dash_extensions.enrich import DashProxy, Input, Output, callback, no_update, ALL, dcc, html
+from dash_extensions.enrich import DashProxy, Input, Output, State, callback, no_update, ALL, dcc, html
 from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
 
@@ -29,6 +29,11 @@ class DATA(Enum):
 	FEATURES = "features"
 	EMBEDDINGS = "embeddings"
 
+class DATA_PART(Enum):
+	SAMPLE = "sample"
+	REST = "rest"
+	FULL = "full"
+
 UMAP_METRICS = [
 	"euclidean", "manhattan", "chebyshev", "minkowski",  
 	"canberra", "braycurtis", "haversine",
@@ -36,11 +41,6 @@ UMAP_METRICS = [
 	"cosine", "correlation"
 	"hamming", "jaccard", "dice", "russellrao", "kulsinski", "rogerstanimoto", "sokalmichener", "sokalsneath", "yule"
 ]
-
-class DATA_PART(Enum):
-	SAMPLE = "sample"
-	REST = "rest"
-	FULL = "full"
 
 ALGOS_CONFIG = {
 	DR_ALGO.PCA.value: {
@@ -82,7 +82,7 @@ class DR:
 			elif algo == DR_ALGO.UMAP.value:
 				return [
 					dbc.Col(input_number_field("Neighbors", id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__NEIGHBORS}, min=1, max=200, value=15), width=3),
-					dbc.Col(input_number_field("Min. dist", id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__MIN_DIST}, min=0.0, max=1.0, value=0.1), width=3),
+					dbc.Col(input_number_field("Min. dist", id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__MIN_DIST}, min=0.0, max=1.0, step=0.1, value=0.1), width=3),
 					dbc.Col(input_select_field(
 						"Metric", 
 						id={"type": ids.DR_UMAP__CONFIG, "index": ids.DR_UMAP__METRIC}, 
@@ -96,15 +96,15 @@ class DR:
 
 			inputs=[
 				Input(ids.DR__START_ALGO, "n_clicks"),
-				Input(ids.DR__SELECT_DATA, "value"),
-				Input(ids.DR__SELECT_ALGO, "value"),
+				State(ids.DR__SELECT_DATA, "value"),
+				State(ids.DR__SELECT_ALGO, "value"),
 
-				Input({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
-				Input({"type": ids.DR_UMAP__CONFIG, "index": ALL}, "value"),
-				Input(ids.DR__COMPONENTS, "value"),
+				State({"type": ids.DR_TSNE__CONFIG, "index": ALL}, "value"),
+				State({"type": ids.DR_UMAP__CONFIG, "index": ALL}, "value"),
+				State(ids.DR__COMPONENTS, "value"),
 
-				Input(ids.FEATURES_STORE, "data"),
-				Input(ids.EMBEDDINGS_STORE, "data"),
+				State(ids.FEATURES_STORE, "data"),
+				State(ids.EMBEDDINGS_STORE, "data"),
 			],
 			running=[
 				(Output(ids.DR__START_ALGO, "disabled"), True, False)
@@ -125,6 +125,8 @@ class DR:
 			features: pd.DataFrame,
 			embeddings: pd.DataFrame
 		):
+			print("running")
+
 			if n_clicks is None:
 				raise PreventUpdate
 			
@@ -135,33 +137,32 @@ class DR:
 			else:
 				dataset = embeddings
 			
-			indices = np.random.permutation(list(range(dataset.shape[0])))
-			reverse = np.argsort(indices)
-
-			dataset_sample, dataset_rest = dataset.loc[indices[:3000],:], dataset.loc[indices[3000:],:]
 
 			if algo == DR_ALGO.TSNE.value:
 				config = dict(n_components=n_components, perplexity=tsne_config[0], early_exaggeration=tsne_config[1], n_iter=tsne_config[2])
 
-				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
+				dataset_micro_sample, dataset_sample = self.get_sample_if_needed(algo, dataset)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_micro_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=TNSE, config=config, data_category=data_category, type="subset", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=TNSE, config=config, data_category=data_category, type=DATA_PART.FULL.value, dataset=dataset_sample)
 				return fig
 
 			elif algo == DR_ALGO.UMAP.value:
 				config = dict(n_components=n_components, n_neighbors=int(umap_config[0]), min_dist=float(umap_config[1]), metric=umap_config[2])
 				print(config)
-				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
+
+				dataset_micro_sample, dataset_sample = self.get_sample_if_needed(algo, dataset)
+
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_micro_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="full", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="full", dataset=dataset_sample)
 				return fig
 
 			else:
 				config = dict(n_components=n_components)
-				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="subset", dataset=dataset_sample)
-				set_progress(fig)
 
 				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="full", dataset=dataset)
 				return fig
@@ -185,7 +186,17 @@ class DR:
 			self._memo[hash] = res
 
 		return self.get_fig(data=res, n_components=config["n_components"])
+	
+	def get_sample_if_needed(self, algo: str, dataset: pd.DataFrame):
+		n_samples = ALGOS_CONFIG[algo]["samples"]
+
+		if n_samples is None:
+			return dataset
 		
+		indices = np.random.permutation(list(range(dataset.shape[0])))
+		dataset_micro_sample = dataset.loc[indices[:int(n_samples / 10)],:]
+		dataset_sample = dataset.loc[indices[:n_samples],:]
+		return (dataset_micro_sample, dataset_sample)
 		
 	def get_fig(self, data: Any, n_components: int):
 		if n_components == 2:

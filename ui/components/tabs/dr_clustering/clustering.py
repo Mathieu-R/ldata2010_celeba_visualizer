@@ -5,7 +5,7 @@ import numpy.typing as npt
 import pandas as pd
 import hashlib
 
-from dash_extensions.enrich import DashProxy, Input, Output, callback, ALL, dcc, html 
+from dash_extensions.enrich import DashProxy, Input, Output, State, callback, ALL, dcc, html 
 from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
 from sklearn.cluster import MiniBatchKMeans, AgglomerativeClustering
@@ -104,17 +104,17 @@ class Clustering:
 			output=Output(ids.CLUSTERING__GRAPH, "figure"),
 			inputs=[
 				Input(ids.CLUSTERING__START_ALGO, "n_clicks"),
-				Input(ids.CLUSTERING__SELECT_DATA, "value"),
-				Input(ids.CLUSTERING__PROJECTION, "value"),
-				Input(ids.CLUSTERING__SELECT_ALGO, "value"),
+				State(ids.CLUSTERING__SELECT_DATA, "value"),
+				State(ids.CLUSTERING__PROJECTION, "value"),
+				State(ids.CLUSTERING__SELECT_ALGO, "value"),
 
-				Input({"type": ids.CLUSTERING_KMEANS__CONFIG, "index": ALL}, "value"),
-				Input({"type": ids.CLUSTERING_DBSCAN__CONFIG, "index": ALL}, "value"),
-				Input({"type": ids.CLUSTERING_AGGLOMERATIVE__CONFIG, "index": ALL}, "value"),
+				State({"type": ids.CLUSTERING_KMEANS__CONFIG, "index": ALL}, "value"),
+				State({"type": ids.CLUSTERING_DBSCAN__CONFIG, "index": ALL}, "value"),
+				State({"type": ids.CLUSTERING_AGGLOMERATIVE__CONFIG, "index": ALL}, "value"),
 
-				Input(ids.DATASET_DROPDOWN, "value"),
-				Input(ids.FEATURES_STORE, "data"),
-				Input(ids.EMBEDDINGS_STORE, "data"),
+				State(ids.DATASET_DROPDOWN, "value"),
+				State(ids.FEATURES_STORE, "data"),
+				State(ids.EMBEDDINGS_STORE, "data"),
 			],
 			running=[
 				(Output(ids.CLUSTERING__START_ALGO, "disabled"), True, False)

@@ -3,12 +3,12 @@ from typing import Any
 import dash_bootstrap_components as dbc
 from dash_extensions.enrich import dcc, html
 
-def input_number_field(title: str | None, id: str | dict[str, str], min: int | float, max: int | float, value: int | float) -> html.Div:
+def input_number_field(title: str | None, id: str | dict[str, str], **args) -> html.Div:
 	if (title is not None):
 		return html.Div([
 			html.P(title),
 			html.Div([
-				dbc.Input(id=id, type="number", min=min, max=max, value=value)
+				dbc.Input(id=id, type="number", **args)
 			])
 		])
 	else:

@@ -1,4 +1,5 @@
 {
     "reportUnknownMemberType": "none",
-    "reportUnknownArgumentType": "none"
+    "reportUnknownArgumentType": "none",
+    "reportMissingTypeStubs": "none"
 }
