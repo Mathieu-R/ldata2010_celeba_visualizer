@@ -45,6 +45,22 @@ pip install "dash[diskcache]"
 pip install "dash[celery]"
 ```
 
+#### Caveats (conda)
+
+Poetry does not work really well with conda. If you have conda installed, you can run the following
+
+```bash
+conda create -n <venv-name> pip
+```
+
+```bash
+conda activate
+```
+
+```bash
+pip install -r requirements.txt
+```
+
 > After installing Poetry and running the virtual environment, create a `data` folder at the root of the project and put in there the datasets. Then run the precomputing script that will split the datasets and compress them.
 
 ```bash
@@ -56,20 +72,4 @@ python precompute_datasets.py
 
 ```bash
 python main.py
-```
-
-#### Conda
-
-Poetry does not work really well with conda. If you have conda installed, you can run the following
-
-```bash
-conda create -n venv
-```
-
-```bash
-conda activate
-```
-
-```bash
-conda install
 ```

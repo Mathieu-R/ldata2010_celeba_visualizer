@@ -1,8 +1,7 @@
 import pandas as pd
 import dash_bootstrap_components as dbc
 
-from dash_extensions.enrich import DashProxy, Input, Output, callback, dcc, html
-from dash.exceptions import PreventUpdate
+from dash_extensions.enrich import DashProxy, Input, Output, callback, html
 
 from ui import ids
 from ui.components import inputs
