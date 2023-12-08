@@ -63,7 +63,7 @@ python main.py
 Poetry does not work really well with conda. If you have conda installed, you can run the following
 
 ```bash
-python3 -m venv env
+conda create -n venv
 ```
 
 ```bash
