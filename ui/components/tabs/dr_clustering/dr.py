@@ -162,9 +162,9 @@ class DR:
 			if algo == DR_ALGO.TSNE.value:
 				config = dict(n_components=n_components, perplexity=tsne_config[0], early_exaggeration=tsne_config[1], n_iter=tsne_config[2])
 
-				#dataset_informative_micro_sample = self.get_sample(dataset_informative_sample)
+				dataset_informative_micro_sample = self.get_sample(dataset_informative_sample)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_informative_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_informative_micro_sample)
 				set_progress(fig)
 
 				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.FULL.value, dataset=dataset_informative_sample)
@@ -172,11 +172,10 @@ class DR:
 
 			elif algo == DR_ALGO.UMAP.value:
 				config = dict(n_components=n_components, n_neighbors=int(umap_config[0]), min_dist=float(umap_config[1]), metric=umap_config[2])
-				print(config)
 
-				#dataset_informative_micro_sample = self.get_sample(dataset_informative_sample)
+				dataset_informative_micro_sample = self.get_sample(dataset_informative_sample)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_informative_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_informative_micro_sample)
 				set_progress(fig)
 
 				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="full", dataset=dataset_informative_sample)
@@ -188,7 +187,7 @@ class DR:
 				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="full", dataset=dataset_informative_sample)
 				return fig
 		
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], data_category: str, type: str, dataset: pd.DataFrame):
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], data_category: str, type: str, dataset: pd.DataFrame | npt.NDArray):
 		hash = self.hash_config(
 			algo=algo,
 			data_category=data_category,
@@ -218,8 +217,7 @@ class DR:
 		n_samples = dataset.shape[0]
 		
 		indices = np.random.permutation(list(range(n_samples)))
-		dataset_sample = np.take(dataset, indices[:n_samples / 10], axis=0)
-		#dataset_sample = dataset.loc[indices[:n_samples / 10],:]
+		dataset_sample = np.take(dataset, indices[:int(n_samples / 10)], axis=0)
 		return dataset_sample
 		
 	def get_fig(self, data: Any, n_components: int):
