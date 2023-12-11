@@ -40,12 +40,13 @@ def most_present_features(app: DashProxy) -> dbc.Card:
 
 @callback(
 	Output(ids.FEATURES_PLOTS__SELECT_FEATURE, "options"),
+	Output(ids.FEATURES_PLOTS__SELECT_FEATURE, "value"),
 
 	Input(ids.FEATURES_STORE, "data")
 )
-def set_features_in_select(features: pd.DataFrame) -> list[str]:
+def set_features_in_select(features: pd.DataFrame) -> tuple[list[str], str]:
 	features_list = features.columns.to_list()
-	return features_list
+	return features_list, features_list[0]
 
 @callback(
 	Output(ids.FEATURES_PLOTS__HIST, "figure"),

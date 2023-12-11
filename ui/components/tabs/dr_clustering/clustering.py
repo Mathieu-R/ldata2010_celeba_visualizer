@@ -19,7 +19,7 @@ from ui.components.graph import custom_graph
 from enum import Enum
 
 class PROJECTION(Enum):
-	TSNE = "tsne_exaggeration_12"
+	TSNE = "tsne"
 	UMAP = "umap"
 
 class CLUSTERING_ALGO(Enum):
@@ -68,6 +68,15 @@ class Clustering:
 
 	def callbacks(self, app: DashProxy):
 		@callback(
+			Output(ids.CLUSTERING__SELECT_INFORMATIVE_SAMPLE, "options"),
+
+			Input(ids.FEATURES_STORE, "data")
+		)
+		def set_features_in_select(features: pd.DataFrame) -> list[str]:
+			features_list = features.columns.to_list()
+			return features_list
+
+		@callback(
 			Output(ids.CLUSTERING__CONFIG, "children"),
 
 			Input(ids.CLUSTERING__SELECT_ALGO, "value")
@@ -113,6 +122,8 @@ class Clustering:
 				State({"type": ids.CLUSTERING_AGGLOMERATIVE__CONFIG, "index": ALL}, "value"),
 
 				State(ids.DATASET_DROPDOWN, "value"),
+
+				State(ids.CLUSTERING__SELECT_INFORMATIVE_SAMPLE, "value"),
 				State(ids.FEATURES_STORE, "data"),
 				State(ids.EMBEDDINGS_STORE, "data"),
 			],
@@ -134,18 +145,19 @@ class Clustering:
 			dbscan_config: list[float],
 			agglomerative_config: list[int],
 			dataset_file: str,
+			selected_feature: str,
 			features: pd.DataFrame,
 			embeddings: pd.DataFrame
 		):
-			print(n_clicks)
-
 			if n_clicks is None:
 				raise PreventUpdate
 			
 			if data_category == DATA.FEATURES.value:
 				dataset = features
 			else:
-				dataset = embeddings
+				# reduce to 50 dimensions for embeddings through PCA
+				# it is ok to use this reduced dimension dataset for clustering
+				dataset = np.load(f"precomputed/{dataset_file}__{data_category}_pca_50.npy")
 
 			data_projected = np.load(f"precomputed/{dataset_file}__{data_category}_{projection}.npy")
 
@@ -155,7 +167,7 @@ class Clustering:
 				n_clusters = kmeans_config[0]
 				config = dict(n_init="auto", n_clusters=n_clusters)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, data_projected=data_projected)
+				fig = self.compute_and_save(algo=algo, algo_fun=MiniBatchKMeans, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, features=features, selected_feature=selected_feature, dataset=dataset, data_projected=data_projected)
 				return fig
 
 			elif algo == CLUSTERING_ALGO.HDBSCAN.value:
@@ -164,26 +176,32 @@ class Clustering:
 
 				config = dict(min_cluster_size=min_cluster_size, min_samples=min_samples)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=HDBSCAN, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, data_projected=data_projected)
+				fig = self.compute_and_save(algo=algo, algo_fun=HDBSCAN, config=config, dataset_file=dataset_file, data_category=data_category, type=DATA_PART.FULL.value, projection=projection, features=features, selected_feature=selected_feature, dataset=dataset, data_projected=data_projected)
 				return fig
 			else:
 				n_clusters = kmeans_config[0]
 				linkage = agglomerative_config[0]
 				config = dict(n_clusters=n_clusters, linkage=linkage)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, dataset_file=dataset_file, data_category=data_category, config=config, type=DATA_PART.FULL.value, projection=projection, dataset=dataset, data_projected=data_projected)
+				fig = self.compute_and_save(algo=algo, algo_fun=AgglomerativeClustering, dataset_file=dataset_file, data_category=data_category, config=config, type=DATA_PART.FULL.value, projection=projection, features=features, selected_feature=selected_feature, dataset=dataset, data_projected=data_projected)
 				return fig
 
-	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset_file: str, data_category: str, type: str, projection: str, dataset: pd.DataFrame, data_projected: pd.DataFrame):
+	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], dataset_file: str, data_category: str, type: str, projection: str, features: pd.DataFrame, selected_feature: str, dataset: pd.DataFrame, data_projected: pd.DataFrame):
 		hash = self.hash_config(
 			algo=algo,
 			data_category=data_category,
 			type=type,
+			selected_feature=selected_feature,
 			projection=projection,
 			config=config
 		)
 
-		dataset, data_projected = self.get_sample_if_needed(algo, dataset, data_projected)
+		dataset_informative_sample, data_projected_informative_sample = self.get_informative_sample(
+			features=features, 
+			selected_feature=selected_feature,
+			dataset=dataset, 
+			data_projected=data_projected
+		)
 
 		# if value has already been computed
 		if hash in self._memo:
@@ -191,16 +209,25 @@ class Clustering:
 		# compute the value and save it for future use
 		else:
 			instance = self.get_algo_instance(algo, algo_fun, config)
-			labels = instance.fit_predict(dataset)
+			labels = instance.fit_predict(dataset_informative_sample)
 			self._memo[hash] = labels
 
-		data = pd.DataFrame(data_projected, columns=["pc1", "pc2", "pc3"])
+		columns = self.get_columns(projection)
+
+		data = pd.DataFrame(data_projected_informative_sample, columns=columns)
 		data["cluster"] = labels
 
 		# to have cluster as discrete values in legend
 		data["cluster"] = data["cluster"].astype(str)
 
-		return px.scatter(data, x="pc1", y="pc2", color="cluster", labels={"cluster": "Cluster"}, opacity=0.5, color_discrete_sequence=px.colors.qualitative.Plotly)
+		return px.scatter(data, x=columns[0], y=columns[1], color="cluster", opacity=0.5, color_discrete_sequence=px.colors.qualitative.Plotly)
+	
+	def get_informative_sample(self, features: pd.DataFrame, selected_feature: str, dataset: pd.DataFrame, data_projected: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+		features_mask = features[[selected_feature]].isin([1]).all(axis=1)
+		dataset_informative_sample = dataset[features_mask]
+		data_projected_informative_sample = data_projected[features_mask]
+
+		return dataset_informative_sample, data_projected_informative_sample
 	
 	def get_sample_if_needed(self, algo: str, dataset: pd.DataFrame, data_projected: pd.DataFrame) -> Any:
 		n_samples = ALGOS_CONFIG[algo]["samples"]
@@ -220,9 +247,17 @@ class Clustering:
 			instance = algo_fun(**config)
 		
 		return instance
+	
+	def get_columns(self, projection: str) -> list[str]:
+		if projection == PROJECTION.TSNE.value:
+			columns = ["tsne1", "tsne2", "tsne3"]
+		else:
+			columns = ["umap1", "umap2", "umap3"]
+		
+		return columns
 
-	def hash_config(self, algo: str, data_category: str, type: str, projection: str, config: dict[str, Any]) -> str:
-		input = algo + data_category + type + projection + str(sorted(config.items()))
+	def hash_config(self, algo: str, data_category: str, type: str, selected_feature: str, projection: str, config: dict[str, Any]) -> str:
+		input = algo + data_category + type + selected_feature + projection + str(sorted(config.items()))
 		hash = hashlib.sha256(input.encode())
 		hash_hex = hash.hexdigest()
 		return hash_hex
@@ -231,8 +266,8 @@ class Clustering:
 		return dbc.Card([
 			dbc.CardHeader([
 				"Clustering",
-				dbc.Row([
-					dbc.Col(
+				dbc.Col([
+					dbc.Row(
 						input_select_field(
 							title=None,
 							id=ids.CLUSTERING__SELECT_DATA,
@@ -241,23 +276,27 @@ class Clustering:
 								{"label": DATA.EMBEDDINGS.name, "value": DATA.EMBEDDINGS.value}
 							],
 							value=DATA.FEATURES.value
-						),
-						width=9
+						)
 					),
-					dbc.Col(
-						input_radio_field(
-							title="Projection",
-							id=ids.CLUSTERING__PROJECTION,
-							options=[
-								{"label": PROJECTION.TSNE.name, "value": PROJECTION.TSNE.value}, 
-								{"label": PROJECTION.UMAP.name, "value": PROJECTION.UMAP.value}
-							],
-							value=PROJECTION.UMAP.value
-						),
-						width=3
-					)
-				])
-				
+					dbc.Row([
+						input_select_field(
+							title="Informative sample",
+							id=ids.CLUSTERING__SELECT_INFORMATIVE_SAMPLE
+						)
+					])
+				], width=9),
+				dbc.Col(
+					input_radio_field(
+						title="Projection",
+						id=ids.CLUSTERING__PROJECTION,
+						options=[
+							{"label": PROJECTION.TSNE.name, "value": PROJECTION.TSNE.value}, 
+							{"label": PROJECTION.UMAP.name, "value": PROJECTION.UMAP.value}
+						],
+						value=PROJECTION.UMAP.value
+					),
+					width=3
+				)
 			]),
 			dbc.CardBody([
 				custom_graph(id=ids.CLUSTERING__GRAPH, no_margin=True)

@@ -2,9 +2,10 @@ import dash_bootstrap_components as dbc
 import plotly.express as px
 import pandas as pd
 import numpy as np
+import numpy.typing as npt
 import hashlib
 
-from dash_extensions.enrich import DashProxy, Input, Output, State, callback, no_update, ALL, dcc, html
+from dash_extensions.enrich import DashProxy, Input, Output, State, callback, ALL, dcc, html
 from dash.exceptions import PreventUpdate
 from plotly import graph_objs as go
 
@@ -42,21 +43,21 @@ UMAP_METRICS = [
 	"hamming", "jaccard", "dice", "russellrao", "kulsinski", "rogerstanimoto", "sokalmichener", "sokalsneath", "yule"
 ]
 
-ALGOS_CONFIG = {
-	DR_ALGO.PCA.value: {
-		# run algo on full dataset
-		"samples": None
-	},
-	DR_ALGO.TSNE.value: {
-		# too slow to run on full dataset
-		# (~ 30min)
-		"samples": 1000
-	},
-	DR_ALGO.UMAP.value: {
-		# too slow to run on full dataset
-		"samples": 1000
-	}
-}
+# ALGOS_CONFIG = {
+# 	DR_ALGO.PCA.value: {
+# 		# run algo on full dataset
+# 		"samples": None
+# 	},
+# 	DR_ALGO.TSNE.value: {
+# 		# too slow to run on full dataset
+# 		# (~ 30min)
+# 		"samples": 1000
+# 	},
+# 	DR_ALGO.UMAP.value: {
+# 		# too slow to run on full dataset
+# 		"samples": 1000
+# 	}
+# }
 
 class DR:
 	def __init__(self, app: DashProxy) -> None:
@@ -67,6 +68,16 @@ class DR:
 			self.callbacks(self._app)
 
 	def callbacks(self, app: DashProxy):
+		@callback(
+			Output(ids.DR__SELECT_INFORMATIVE_SAMPLE, "options"),
+			Output(ids.DR__SELECT_INFORMATIVE_SAMPLE, "value"),
+
+			Input(ids.FEATURES_STORE, "data")
+		)
+		def set_features_in_select(features: pd.DataFrame) -> tuple[list[str], str]:
+			features_list = features.columns.to_list()
+			return features_list, features_list[0]
+
 		@callback(
 			Output(ids.DR__CONFIG, "children"),
 
@@ -103,6 +114,9 @@ class DR:
 				State({"type": ids.DR_UMAP__CONFIG, "index": ALL}, "value"),
 				State(ids.DR__COMPONENTS, "value"),
 
+				State(ids.DATASET_DROPDOWN, "value"),
+
+				State(ids.DR__SELECT_INFORMATIVE_SAMPLE, "value"),
 				State(ids.FEATURES_STORE, "data"),
 				State(ids.EMBEDDINGS_STORE, "data"),
 			],
@@ -122,11 +136,11 @@ class DR:
 			tsne_config: list[int],
 			umap_config: Any,
 			n_components: int,
+			dataset_file: str,
+			selected_feature: str,
 			features: pd.DataFrame,
 			embeddings: pd.DataFrame
 		):
-			print("running")
-
 			if n_clicks is None:
 				raise PreventUpdate
 			
@@ -135,36 +149,43 @@ class DR:
 			if data_category == DATA.FEATURES.value:
 				dataset = features
 			else:
-				dataset = embeddings
-			
+				# reduce to 50 dimensions for embeddings through PCA
+				# it is ok to use this reduced dimension dataset for further dimension reduction
+				dataset = np.load(f"precomputed/{dataset_file}__{data_category}_pca_50.npy")
+
+			dataset_informative_sample = self.get_informative_sample(
+				features=features, 
+				selected_feature=selected_feature,
+				dataset=dataset
+			)
 
 			if algo == DR_ALGO.TSNE.value:
 				config = dict(n_components=n_components, perplexity=tsne_config[0], early_exaggeration=tsne_config[1], n_iter=tsne_config[2])
 
-				dataset_micro_sample, dataset_sample = self.get_sample_if_needed(algo, dataset)
+				#dataset_informative_micro_sample = self.get_sample(dataset_informative_sample)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_micro_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_informative_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=TNSE, config=config, data_category=data_category, type=DATA_PART.FULL.value, dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=TSNE, config=config, data_category=data_category, type=DATA_PART.FULL.value, dataset=dataset_informative_sample)
 				return fig
 
 			elif algo == DR_ALGO.UMAP.value:
 				config = dict(n_components=n_components, n_neighbors=int(umap_config[0]), min_dist=float(umap_config[1]), metric=umap_config[2])
 				print(config)
 
-				dataset_micro_sample, dataset_sample = self.get_sample_if_needed(algo, dataset)
+				#dataset_informative_micro_sample = self.get_sample(dataset_informative_sample)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_micro_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type=DATA_PART.SAMPLE.value, dataset=dataset_informative_sample)
 				set_progress(fig)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="full", dataset=dataset_sample)
+				fig = self.compute_and_save(algo=algo, algo_fun=UMAP, config=config, data_category=data_category, type="full", dataset=dataset_informative_sample)
 				return fig
 
 			else:
 				config = dict(n_components=n_components)
 
-				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="full", dataset=dataset)
+				fig = self.compute_and_save(algo=algo, algo_fun=PCA, config=config, data_category=data_category, type="full", dataset=dataset_informative_sample)
 				return fig
 		
 	def compute_and_save(self, algo: str, algo_fun: Any, config: dict[str, Any], data_category: str, type: str, dataset: pd.DataFrame):
@@ -187,22 +208,33 @@ class DR:
 
 		return self.get_fig(data=res, n_components=config["n_components"])
 	
-	def get_sample_if_needed(self, algo: str, dataset: pd.DataFrame):
-		n_samples = ALGOS_CONFIG[algo]["samples"]
+	def get_informative_sample(self, features: pd.DataFrame, selected_feature: str, dataset: pd.DataFrame) -> pd.DataFrame:
+		features_mask = features[[selected_feature]].isin([1]).all(axis=1)
+		dataset_informative_sample = dataset[features_mask]
 
-		if n_samples is None:
-			return dataset
+		return dataset_informative_sample
+	
+	def get_sample(self, dataset: pd.DataFrame) -> npt.NDArray:
+		n_samples = dataset.shape[0]
 		
-		indices = np.random.permutation(list(range(dataset.shape[0])))
-		dataset_micro_sample = dataset.loc[indices[:int(n_samples / 10)],:]
-		dataset_sample = dataset.loc[indices[:n_samples],:]
-		return (dataset_micro_sample, dataset_sample)
+		indices = np.random.permutation(list(range(n_samples)))
+		dataset_sample = np.take(dataset, indices[:n_samples / 10], axis=0)
+		#dataset_sample = dataset.loc[indices[:n_samples / 10],:]
+		return dataset_sample
 		
 	def get_fig(self, data: Any, n_components: int):
 		if n_components == 2:
 			return px.scatter(data, x=data[:,0], y=data[:,1])
 		else:
 			return px.scatter_3d(data, x=data[:,0], y=data[:,1], z=data[:,2])
+	
+	def get_columns(self, projection: str) -> list[str]:
+		if projection == DR_ALGO.TSNE.value:
+			columns = ["tsne1", "tsne2", "tsne3"]
+		else:
+			columns = ["umap1", "umap2", "umap3"]
+		
+		return columns
 		
 	def hash_config(self, algo: str, data_category: str, type: str, config: dict[str, Any]) -> str:
 		input = algo + data_category + type + str(sorted(config.items()))
@@ -214,15 +246,26 @@ class DR:
 		return dbc.Card([
 			dbc.CardHeader([
 				"Dimension Reduction",
-				input_select_field(
-					title=None,
-					id=ids.DR__SELECT_DATA,
-					options=[
-						{"label": DATA.FEATURES.name, "value": DATA.FEATURES.value},
-						{"label": DATA.EMBEDDINGS.name, "value": DATA.EMBEDDINGS.value}
-					],
-					value=DATA.FEATURES.value
-				)
+				dbc.Col([
+					dbc.Row([
+						input_select_field(
+							title=None,
+							id=ids.DR__SELECT_DATA,
+							options=[
+								{"label": DATA.FEATURES.name, "value": DATA.FEATURES.value},
+								{"label": DATA.EMBEDDINGS.name, "value": DATA.EMBEDDINGS.value}
+							],
+							value=DATA.FEATURES.value
+						)
+					]),
+					dbc.Row([
+						input_select_field(
+							title="Informative sample",
+							id=ids.DR__SELECT_INFORMATIVE_SAMPLE
+						)
+					])
+				])
+				
 			]),
 			dbc.CardBody([
 				custom_graph(id=ids.DR__GRAPH, no_margin=True)

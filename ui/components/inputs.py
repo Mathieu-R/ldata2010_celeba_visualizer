@@ -6,7 +6,7 @@ from dash_extensions.enrich import dcc, html
 def input_number_field(title: str | None, id: str | dict[str, str], **args) -> html.Div:
 	if (title is not None):
 		return html.Div([
-			html.P(title),
+			dbc.Label(title),
 			html.Div([
 				dbc.Input(id=id, type="number", **args)
 			])
@@ -14,22 +14,20 @@ def input_number_field(title: str | None, id: str | dict[str, str], **args) -> h
 	else:
 		return html.Div([
 			html.Div([
-				dbc.Input(id=id, type="number", min=min, max=max, value=value)
+				dbc.Input(id=id, type="number", **args)
 			])
 		])
 
-def input_select_field(title: str | None, id: str | dict[str, str], options: list[dict[str, Any]] | list[str], value: Any) -> html.Div:
+def input_select_field(title: str | None, id: str | dict[str, str], **args) -> html.Div:
 	if title is not None:
 		return html.Div([
-			html.P(title),
+			dbc.Label(title),
 			html.Div([
 				dbc.Select(
 					id=id,
 					persistence=True,
 					persistence_type="local",
-					value=value,
-					options=options,
-					class_name="input_select"
+					**args
 				)
 			])
 		], className="input_select__container")
@@ -40,16 +38,14 @@ def input_select_field(title: str | None, id: str | dict[str, str], options: lis
 					id=id,
 					persistence=True,
 					persistence_type="local",
-					value=value,
-					options=options,
-					class_name="input_select"
+					**args
 				)
 			])
 		], className="input_select__container")
 
 def input_dropdown_field(title: str, placeholder: str, id: str | dict[str, str]) -> html.Div:
 	return html.Div([
-		html.P(title),
+		dbc.Label(title),
 		dcc.Dropdown(
 			placeholder=placeholder,
 			multi=True,
