@@ -2,7 +2,6 @@ import pandas as pd
 import dash_bootstrap_components as dbc
 
 from dash_extensions.enrich import DashProxy, Serverside, Input, Output, callback, html
-from dash_iconify import DashIconify
 
 from ui import ids
 from ui.components.inputs import input_select_field

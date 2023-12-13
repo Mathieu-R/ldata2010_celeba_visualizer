@@ -1,7 +1,6 @@
 import dash_bootstrap_components as dbc
 
 from dash_extensions.enrich import DashProxy, Input, Output, callback, dcc, html
-from dash_iconify import DashIconify
 
 from .tabs.photo_gallery import gallery
 from .tabs.correlation_matrixes import correlation_matrix
