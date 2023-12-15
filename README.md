@@ -45,7 +45,7 @@ Alternatively, you can install the resources **manually**.
 
 1. Download the [resources](https://shorturl.at/esBKV).
 2. Create a `data` folder at the root of the project and put in there the datasets.
-3. Create a `assets` folder and add the `img_celeba` folder in it.
+3. Add the `img_celeba` folder in it.
 
 #### Splits and compress datasets
 
