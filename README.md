@@ -33,6 +33,7 @@ You first need to create a virtual environment that will contain all the python 
 
 ```bash
 pdm venv create
+pdm use .venv
 ```
 
 The will create a virtual environment named `in-project` in the `.venv` folder at the root of this project.
