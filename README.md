@@ -27,6 +27,16 @@ For Windows (PowerShell)
 
 Other ways to install it (e.g. using pipx): https://pdm-project.org/latest/#installation
 
+#### Create a virtual environment
+
+You first need to create a virtual environment that will contain all the python packages necessary for running the project.
+
+```bash
+pdm venv create
+```
+
+The will create a virtual environment named `in-project` in the `.venv` folder at the root of this project.
+
 #### Installing the packages
 
 ```bash
@@ -47,29 +57,29 @@ Alternatively, you can install the resources **manually**.
 2. Create a `data` folder at the root of the project and put in there the datasets.
 3. Add the `img_celeba` folder in it.
 
-#### Splits and compress datasets
-
-Then run the precomputing script that will split the datasets and compress them.
-
-_You first need to activate the virtual environment in order to run this script. See section below._
-
-```bash
-python precompute_datasets.py
-```
-
 #### Activate the virtual environment
 
-In order to run the project, you first need to activate the virtual environment. This will allow the python files to access the packages previously installed.
+In order to run the project or any python scripts, you first need to activate the virtual environment. This will allow the python files to access the packages previously installed.
 The following command will print the command you need to type in order to activate the virtual environment.
 
 ```bash
-pdm venv activate
+pdm venv activate in-project
 ```
 
 Then type the command given to you.
 
 Here is an example.
 ![example-activating-venv](./example_venv_activate.png)
+
+#### Splits and compress datasets
+
+Then run the precomputing script that will split the datasets and compress them.
+
+_You first need to activate the virtual environment in order to run this script. See section above._
+
+```bash
+python precompute_datasets.py
+```
 
 #### Running the project
 
