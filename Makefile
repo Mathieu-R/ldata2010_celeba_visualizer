@@ -14,7 +14,6 @@ resources:
 	mv celeba_buffalo_s.csv data/celeba_buffalo_s.csv
 	mv img_celeba assets/img_celeba
 	rm -rf celeba.zip
-	python precompute_dataset.py
 
 precompute:
 	python precompute_ndarray.py

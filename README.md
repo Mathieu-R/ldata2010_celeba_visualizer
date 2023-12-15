@@ -1,3 +1,8 @@
+CelebA data visualization using Dash.
+
+![app-screenshot](./screenshot1.png)
+![app-screenshot](./screenshot2.png)
+
 ### Installation
 
 #### Prerequisite
@@ -30,25 +35,32 @@ pdm install --no-self
 
 #### Installing resources (datasets and images)
 
-If you have the _make_ GNU utility, you can perform an automatic installation of the resources.
+If you have the _make_ GNU utility, you can perform an **automatic** installation of the resources.
 
 ```bash
 make resources
 ```
 
-Alternatively, you can install the resources manually.
+Alternatively, you can install the resources **manually**.
 
-> Create a `data` folder at the root of the project and put in there the datasets. Then run the precomputing script that will split the datasets and compress them.
+1. Download the [resources](https://shorturl.at/esBKV).
+2. Create a `data` folder at the root of the project and put in there the datasets.
+3. Create a `assets` folder and add the `img_celeba` folder in it.
+
+#### Splits and compress datasets
+
+Then run the precomputing script that will split the datasets and compress them.
+
+_You first need to activate the virtual environment in order to run this script. See section below._
 
 ```bash
 python precompute_datasets.py
 ```
 
-> Then create a `assets` folder and add the `img_celeba` folder in it.
+#### Activate the virtual environment
 
-#### Running the project
-
-Using the following command, it will print the command you need to type to activate the environment.
+In order to run the project, you first need to activate the virtual environment. This will allow the python files to access the packages previously installed.
+The following command will print the command you need to type in order to activate the virtual environment.
 
 ```bash
 pdm venv activate
@@ -59,7 +71,7 @@ Then type the command given to you.
 Here is an example.
 ![example-activating-venv](./example_venv_activate.png)
 
-Finally you can run the project.
+#### Running the project
 
 ```bash
 python main.py
